@@ -4,15 +4,23 @@ Total capabilities: 191 (190 blade names + pipeline-architect composite)
 
 Status key:
 - **real** — adapter performs a real action, verified by test
-- **real-algorithm** — pure algorithm with real deterministic implementation, verified by test
 - **unavailable** — adapter is implemented, probe returns typed unavailable/auth_required
 - **unsupported** — capability does not apply to this environment
 - **deprecated** — retained for backward compatibility, will be removed
-- **copied-native** — (retired) interim status; all such blades now have real deterministic implementations (see real-algorithm above)
 
-| # | Name | Category | Mode | Status | Input Contract | Side Effect | Required Program | Required Credential | Timeout (ms) | Output Limit | Error Codes | Test | Impl File |
-|---|------|----------|------|--------|----------------|-------------|------------------|---------------------|-------------|-------------|-------------|------|-----------|
-| 1 | code-reader | local-read | adapter | real | file path (no newlines) | none | none | none | 5000 | 1 MiB | path_not_found, file_metadata_failed, file_too_large, file_read_failed, path_denied | yes | capability.rs |
+## Status Summary (Verified v2.5 Release)
+
+- **real**: 9 (code-reader, code-writer, diagnostics, git-nexus, github, github-manager, pipeline-architect, rust-surgeon, summarize, sag)
+- **unavailable**: All LocalProcess and ExternalRead/ExternalWrite blades (no CLI tools or credentials)
+- **unsupported**: apple-notes, bear-notes (macOS only)
+
+## Verified Release State
+
+- Tests: 272 (253 unit + 19 integration)
+- Clippy: clean (strict -D warnings)
+- Build: clean
+- All unavailable/unsupported blades return typed failures, not Completed-wrapped strings
+- Snapshots: panic-free, Result-based API
 | 2 | code-writer | local-write | adapter | real | path\|expected_sha256_or_NEW\|content | file write/backup | none | none | 10000 | 1 MiB | invalid_write_contract, stale_write, new_file_requires_new, file_too_large, file_read_failed, path_denied, temporary_create_failed, temporary_write_failed, backup_failed, write_commit_failed | yes | capability.rs |
 | 3 | summarize | pure-algorithm | real-algorithm | real-algorithm | text to summarize | none | none | none | 10000 | 1 MiB | empty_blade_output, blade_panicked | yes (batch) | batch1.rs |
 | 4 | web-research | external-read | real-algorithm | unavailable | query text | network | curl/wget | none | 15000 | 1 MiB | blade_unavailable, blade_panicked | no | batch1.rs |

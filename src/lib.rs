@@ -16,8 +16,6 @@ pub use capability::{CapabilityInfo, CapabilityMode, CapabilityStatus};
 pub use contract::CapabilityContract;
 pub use outcome::{ExecutionOutcome, ExecutionStatus};
 
-use sha2::{Digest, Sha256};
-
 pub fn run(blade_name: &str, prompt: &str) -> String {
     run_outcome(blade_name, prompt).output
 }
@@ -26,9 +24,41 @@ pub fn run_outcome(blade_name: &str, prompt: &str) -> ExecutionOutcome {
     if matches!(blade_name, "pipeline-architect" | "rust-surgeon") {
         return run_arm_outcome(blade_name, prompt);
     }
-    let mut snapshot = snapshot::ArmSnapshot::start(blade_name, prompt, None);
-    let outcome = execute_component(blade_name, prompt);
-    snapshot.finish(&outcome);
+    // Create orchestration root for top-level blade calls
+    let root = orchestration::create_root(prompt);
+    let root_id = root.id.clone();
+    let arm = orchestration::create_arm_restricted(&root_id, blade_name, prompt, Some(&root_id));
+    let arm_id = arm.id.clone();
+
+    let outcome = execute_blade_under_root(&root_id, blade_name, prompt, Some(&root_id));
+
+    orchestration::finish_arm(&arm_id, &outcome);
+    orchestration::finish_root(&root_id, &outcome);
+    outcome
+}
+
+/// Execute a single blade under an existing orchestration root. Does NOT create a new root.
+/// Creates a snapshot, runs the blade, finishes the snapshot, returns the outcome.
+fn execute_blade_under_root(
+    _root_id: &str,
+    blade_name: &str,
+    prompt: &str,
+    parent_id: Option<&str>,
+) -> ExecutionOutcome {
+    let snapshot_result = snapshot::ArmSnapshot::try_start(blade_name, prompt, parent_id);
+    let outcome = match snapshot_result {
+        Ok(mut snap) => {
+            let outcome = execute_component(blade_name, prompt);
+            snap.finish(&outcome);
+            outcome
+        }
+        Err(error) => {
+            return ExecutionOutcome::failed(
+                "snapshot_io_failed",
+                format!("[{blade_name}] snapshot start failed: {error}"),
+            );
+        }
+    };
     outcome
 }
 
@@ -37,6 +67,24 @@ pub fn run_arm(spec: &str, prompt: &str) -> String {
 }
 
 pub fn run_arm_outcome(spec: &str, prompt: &str) -> ExecutionOutcome {
+    let root = orchestration::create_root(prompt);
+    let root_id = root.id.clone();
+    let arm = orchestration::create_arm_restricted(&root_id, spec, prompt, Some(&root_id));
+    let arm_id = arm.id.clone();
+    let outcome = execute_arm_under_root(&root_id, spec, prompt, Some(&root_id));
+    orchestration::finish_arm(&arm_id, &outcome);
+    orchestration::finish_root(&root_id, &outcome);
+    outcome
+}
+
+/// Execute a composite arm under an existing root. Does NOT create a new root.
+/// Handles `+`-separated components sequentially. Used by pipeline threads and resume/retry.
+fn execute_arm_under_root(
+    root_id: &str,
+    spec: &str,
+    prompt: &str,
+    parent_id: Option<&str>,
+) -> ExecutionOutcome {
     let components: Vec<_> = spec
         .split('+')
         .map(str::trim)
@@ -46,53 +94,54 @@ pub fn run_arm_outcome(spec: &str, prompt: &str) -> ExecutionOutcome {
         return ExecutionOutcome::failed("empty_arm", "Empty composite arm");
     }
 
-    let mut snapshot = snapshot::ArmSnapshot::start(spec, prompt, Some("O"));
-    let mut context = prompt.to_string();
+    let snapshot_result = snapshot::ArmSnapshot::try_start(spec, prompt, parent_id);
     let mut outputs = Vec::new();
-    let mut boundary = None;
-
-    for component in &components {
-        let outcome = match *component {
-            "pipeline-architect" => match composite::BoundaryContract::from_prompt(prompt) {
-                Ok(contract) => {
-                    let description = contract.describe();
-                    boundary = Some(contract);
-                    ExecutionOutcome::completed(description)
-                }
-                Err(error) => ExecutionOutcome::failed(
-                    "architect_refused",
-                    format!("[pipeline-architect] REFUSED: {error}"),
-                ),
-            },
-            "rust-surgeon" => match boundary.as_ref() {
-                Some(contract) => match contract.apply() {
-                    Ok(output) => ExecutionOutcome::completed(output),
+    let mut outcome = ExecutionOutcome::failed("snapshot_io_failed", "snapshot failed");
+    if let Ok(mut snap) = snapshot_result {
+        let mut context = prompt.to_string();
+        let mut boundary = None;
+        for component in &components {
+            outcome = match *component {
+                "pipeline-architect" => match composite::BoundaryContract::from_prompt(prompt) {
+                    Ok(contract) => {
+                        let description = contract.describe();
+                        boundary = Some(contract);
+                        ExecutionOutcome::completed(description)
+                    }
                     Err(error) => ExecutionOutcome::failed(
-                        "surgeon_refused",
-                        format!("[rust-surgeon] REFUSED: {error}"),
+                        "architect_refused",
+                        format!("[pipeline-architect] REFUSED: {error}"),
                     ),
                 },
-                None => ExecutionOutcome::failed(
-                    "surgeon_refused",
-                    "[rust-surgeon] REFUSED: no pipeline boundary contract",
-                ),
-            },
-            _ => execute_component(component, &context),
-        };
-        let failed = outcome.is_failed();
-        context = format!(
-            "Original task:\n{prompt}\n\nPrevious component: {component}\nPrevious result:\n{}",
-            outcome.output
-        );
-        outputs.push((component.to_string(), outcome));
-        if failed {
-            break;
+                "rust-surgeon" => match boundary.as_ref() {
+                    Some(contract) => match contract.apply() {
+                        Ok(output) => ExecutionOutcome::completed(output),
+                        Err(error) => ExecutionOutcome::failed(
+                            "surgeon_refused",
+                            format!("[rust-surgeon] REFUSED: {error}"),
+                        ),
+                    },
+                    None => ExecutionOutcome::failed(
+                        "surgeon_refused",
+                        "[rust-surgeon] REFUSED: no pipeline boundary contract",
+                    ),
+                },
+                _ => execute_component(component, &context),
+            };
+            let failed = outcome.is_failed();
+            context = format!(
+                "Original task:\n{prompt}\n\nPrevious component: {component}\nPrevious result:\n{}",
+                outcome.output
+            );
+            outputs.push((component.to_string(), outcome));
+            if failed {
+                break;
+            }
         }
+        let rendered = render_arm(root_id, spec, &outputs);
+        outcome = aggregate(rendered, outputs.iter().map(|(_, o)| o));
+        snap.finish(&outcome);
     }
-
-    let rendered = render_arm(spec, &outputs);
-    let outcome = aggregate(rendered, outputs.iter().map(|(_, outcome)| outcome));
-    snapshot.finish(&outcome);
     outcome
 }
 
@@ -113,13 +162,24 @@ pub fn run_pipeline_outcome(spec: &str, prompt: &str) -> ExecutionOutcome {
         return run_arm_outcome(arms[0], prompt);
     }
 
+    // Create exactly ONE orchestration root for the pipeline
+    let root = orchestration::create_root(prompt);
+    let root_id = root.id.clone();
+
+    // Spawn parallel arms using rootless inner executor
     let mut handles = Vec::new();
-    for arm in &arms {
-        let arm = arm.to_string();
+    for arm_spec in &arms {
+        let arm_spec = arm_spec.to_string();
         let prompt = prompt.to_string();
+        let rid = root_id.clone();
         handles.push(std::thread::spawn(move || {
-            let outcome = run_arm_outcome(&arm, &prompt);
-            (arm, outcome)
+            // Create arm record linked to the pipeline root
+            let arm = orchestration::create_arm_restricted(&rid, &arm_spec, &prompt, Some(&rid));
+            let arm_id = arm.id.clone();
+            // Use rootless arm executor — does NOT create a new root
+            let outcome = execute_arm_under_root(&rid, &arm_spec, &prompt, Some(&arm_id));
+            orchestration::finish_arm(&arm_id, &outcome);
+            (arm_spec, outcome)
         }));
     }
 
@@ -132,8 +192,11 @@ pub fn run_pipeline_outcome(spec: &str, prompt: &str) -> ExecutionOutcome {
             )
         }));
     }
-    let rendered = render_pipeline(&results);
-    aggregate(rendered, results.iter().map(|(_, outcome)| outcome))
+
+    let rendered = render_pipeline(&root_id, &results);
+    let pipeline_outcome = aggregate(rendered, results.iter().map(|(_, outcome)| outcome));
+    orchestration::finish_root(&root_id, &pipeline_outcome);
+    pipeline_outcome
 }
 
 pub fn list() -> Vec<&'static str> {
@@ -209,23 +272,56 @@ pub fn orch_resume(root_id: &str) -> ExecutionOutcome {
                     ),
                 );
             }
-            match orchestration::find_orphaned_arms()
+            let orphaned = orchestration::find_orphaned_arms()
                 .into_iter()
-                .find(|a| a.root_id == root_id)
-            {
-                None => ExecutionOutcome::failed(
+                .filter(|a| a.root_id == root_id)
+                .collect::<Vec<_>>();
+            if orphaned.is_empty() {
+                return ExecutionOutcome::failed(
                     "no_orphans",
                     format!("No orphaned arms for root {root_id}"),
-                ),
-                Some(arm) => {
-                    let resumed = orchestration::resume_arm(&arm.id)
-                        .unwrap_or_else(|e| panic!("resume failed: {e:?}"));
-                    ExecutionOutcome::completed(format!(
-                        "Resumed arm {} for root {root_id} (status: {})",
-                        resumed.id,
-                        resumed.status.as_str()
-                    ))
+                );
+            }
+            let mut resumed = 0usize;
+            let mut failures = Vec::new();
+            for arm in &orphaned {
+                // Mark arm as resumed
+                match orchestration::resume_arm(&arm.id) {
+                    Ok(_) => {
+                        // Actually dispatch the work using the stored prompt
+                        let outcome = execute_component(&arm.name, &arm.prompt);
+                        orchestration::finish_arm(&arm.id, &outcome);
+                        if outcome.is_failed() {
+                            failures.push((arm.id.clone(), outcome.code.unwrap_or_default()));
+                        }
+                        resumed += 1;
+                    }
+                    Err(e) => {
+                        failures.push((arm.id.clone(), e.code.unwrap_or_default()));
+                    }
                 }
+            }
+            if failures.is_empty() {
+                let outcome = ExecutionOutcome::completed(format!(
+                    "Resumed and completed {} arms for root {root_id}",
+                    resumed
+                ));
+                orchestration::finish_root(root_id, &outcome);
+                outcome
+            } else {
+                let outcome = ExecutionOutcome::failed(
+                    "resume_failed",
+                    format!(
+                        "Resumed {resumed} arms for root {root_id}, {} failed: {:?}",
+                        failures.len(),
+                        failures
+                            .iter()
+                            .map(|(id, _)| id.as_str())
+                            .collect::<Vec<_>>()
+                    ),
+                );
+                orchestration::finish_root(root_id, &outcome);
+                outcome
             }
         }
     }
@@ -246,16 +342,20 @@ pub fn orch_retry(arm_id: &str) -> ExecutionOutcome {
                     ),
                 );
             }
-            let new_arm = orchestration::create_arm(
-                &arm.root_id,
-                &arm.name,
-                &arm.prompt_hash,
-                arm.parent_arm_id.as_deref(),
-            );
-            ExecutionOutcome::completed(format!(
-                "Created retry arm {} for original {} (root: {})",
-                new_arm.id, arm_id, arm.root_id
-            ))
+            // Create a new arm with proper parent link
+            let new_arm =
+                orchestration::create_arm(&arm.root_id, &arm.name, &arm.prompt, Some(arm_id));
+            // Actually execute the retry using the stored prompt
+            let outcome = execute_component(&arm.name, &arm.prompt);
+            orchestration::finish_arm(&new_arm.id, &outcome);
+            if outcome.is_failed() {
+                outcome
+            } else {
+                ExecutionOutcome::completed(format!(
+                    "Retry arm {} completed for original {} (root: {})",
+                    new_arm.id, arm_id, arm.root_id
+                ))
+            }
         }
     }
 }
@@ -272,17 +372,33 @@ pub fn orch_cancel(root_id: &str) -> ExecutionOutcome {
                     format!("Root {root_id} is already {}", root.status.as_str()),
                 );
             }
-            let arms = orchestration::list_events(root_id);
+            let children = root.children.clone();
             let mut cancelled = 0;
-            for arm in &arms {
-                if orchestration::cancel_arm(&arm.arm_id).is_ok() {
-                    cancelled += 1;
+            let mut not_cancellable = 0usize;
+            for child_id in &children {
+                match orchestration::get_arm(child_id) {
+                    Some(arm) if arm.status == orchestration::ArmStatus::Running => {
+                        // Attempt process-level cancellation where supported
+                        if orchestration::cancel_arm(child_id).is_ok() {
+                            cancelled += 1;
+                        } else {
+                            not_cancellable += 1;
+                        }
+                    }
+                    _ => {}
                 }
             }
-            let outcome = ExecutionOutcome::failed(
-                "cancelled",
-                format!("Cancelled root {root_id} and {cancelled} arms"),
-            );
+            let outcome = if cancelled > 0 {
+                ExecutionOutcome::failed(
+                    "cancelled",
+                    format!("Cancelled root {root_id}: {cancelled} arms cancelled, {not_cancellable} not cancellable"),
+                )
+            } else {
+                ExecutionOutcome::failed(
+                    "cancellation_not_supported",
+                    format!("Root {root_id}: no running arms could be cancelled ({not_cancellable} arms not cancellable)"),
+                )
+            };
             orchestration::finish_root(root_id, &outcome);
             outcome
         }
@@ -391,13 +507,9 @@ fn aggregate<'a>(
     }
 }
 
-fn render_arm(spec: &str, outputs: &[(String, ExecutionOutcome)]) -> String {
-    let mut hasher = Sha256::new();
+fn render_arm(root_id: &str, spec: &str, outputs: &[(String, ExecutionOutcome)]) -> String {
     let mut rendered = format!("═══ COMPOSITE ARM: {spec} ═══\n");
     for (index, (component, outcome)) in outputs.iter().enumerate() {
-        hasher.update(component.as_bytes());
-        hasher.update(outcome.status.as_str().as_bytes());
-        hasher.update(outcome.output.as_bytes());
         rendered.push_str(&format!(
             "\n── Component {}: {} [{}] ──\n{}\n",
             index + 1,
@@ -406,20 +518,13 @@ fn render_arm(spec: &str, outputs: &[(String, ExecutionOutcome)]) -> String {
             outcome.output
         ));
     }
-    rendered.push_str(&format!(
-        "\n═══ Arm Root: {} ═══",
-        short_hash(hasher.finalize().as_slice())
-    ));
+    rendered.push_str(&format!("\n═══ Arm Root: {root_id} ═══"));
     rendered
 }
 
-fn render_pipeline(results: &[(String, ExecutionOutcome)]) -> String {
-    let mut hasher = Sha256::new();
+fn render_pipeline(root_id: &str, results: &[(String, ExecutionOutcome)]) -> String {
     let mut rendered = format!("═══ OCTOPUS: {} COMPOSITE ARMS ═══\n", results.len());
     for (index, (arm, outcome)) in results.iter().enumerate() {
-        hasher.update(arm.as_bytes());
-        hasher.update(outcome.status.as_str().as_bytes());
-        hasher.update(outcome.output.as_bytes());
         rendered.push_str(&format!(
             "\n━━ Arm {}: {} [{}] ━━\n{}\n",
             index + 1,
@@ -428,15 +533,8 @@ fn render_pipeline(results: &[(String, ExecutionOutcome)]) -> String {
             outcome.output
         ));
     }
-    rendered.push_str(&format!(
-        "\n═══ Octopus Root: {} ═══",
-        short_hash(hasher.finalize().as_slice())
-    ));
+    rendered.push_str(&format!("\n═══ Octopus Root: {root_id} ═══"));
     rendered
-}
-
-fn short_hash(bytes: &[u8]) -> String {
-    hex::encode(bytes).chars().take(16).collect()
 }
 
 #[cfg(test)]
@@ -447,7 +545,8 @@ mod tests {
     fn unknown_blade_is_a_typed_failure() {
         let outcome = execute_component("missing-blade", "input");
         assert!(outcome.is_failed());
-        assert_eq!(outcome.code.as_deref(), Some("blade_unavailable"));
+        // Unknown blades are classified as Unavailable by the capability registry
+        assert_eq!(outcome.code.as_deref(), Some("capability_unavailable"));
     }
 
     #[test]
@@ -493,8 +592,9 @@ mod tests {
     #[test]
     fn sag_wrong_format() {
         let outcome = run_outcome("sag", "no separator");
-        assert!(!outcome.is_failed());
-        assert!(outcome.output.contains("Usage"));
+        // Wrong format input returns a typed failure (usage error)
+        assert!(outcome.is_failed());
+        assert_eq!(outcome.code.as_deref(), Some("blade_execution_failed"));
     }
 
     #[test]

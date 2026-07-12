@@ -17,12 +17,6 @@ struct IncomingMessage {
     framed: bool,
 }
 
-/// Rendered canonical capability list. The MCP `octopus_capabilities` tool and
-/// the CLI `capabilities` command both return exactly this string.
-pub fn render_capabilities_for_mcp() -> String {
-    crate::render_capabilities()
-}
-
 pub fn run() {
     let stdin = io::stdin();
     let stdout = io::stdout();

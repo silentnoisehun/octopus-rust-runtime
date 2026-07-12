@@ -42,6 +42,7 @@ pub struct ArmRecord {
     pub parent_arm_id: Option<String>,
     pub status: ArmStatus,
     pub prompt_hash: String,
+    pub prompt: String,
     pub output_hash: Option<String>,
     pub output_bytes: usize,
     pub error_code: Option<String>,
@@ -167,6 +168,7 @@ pub fn create_arm(
         parent_arm_id: parent_arm_id.map(|s| s.to_string()),
         status: ArmStatus::Running,
         prompt_hash: hash(prompt),
+        prompt: prompt.to_string(),
         output_hash: None,
         output_bytes: 0,
         error_code: None,
@@ -195,6 +197,17 @@ pub fn create_arm(
     persist_arm(&record);
 
     record
+}
+
+/// Create an arm record and persist it. Like `create_arm` but follows restricted
+/// lifecycle rules (used by pipeline threads and internal executors).
+pub fn create_arm_restricted(
+    root_id: &str,
+    name: &str,
+    prompt: &str,
+    parent_arm_id: Option<&str>,
+) -> ArmRecord {
+    create_arm(root_id, name, prompt, parent_arm_id)
 }
 
 pub fn finish_arm(arm_id: &str, outcome: &ExecutionOutcome) {
@@ -515,13 +528,14 @@ fn persist_arm(arm: &ArmRecord) {
 
     let path = dir.join(format!("{}.snap", arm.id));
     let content = format!(
-        "OCTOPUS ARM\nid: {}\nname: {}\nroot: {}\nparent: {}\nstatus: {}\nprompt-hash: {}\noutput-hash: {}\noutput-bytes: {}\nerror: {}\nstarted: {}\nfinished: {}\nduration: {}\n",
+        "OCTOPUS ARM\nid: {}\nname: {}\nroot: {}\nparent: {}\nstatus: {}\nprompt-hash: {}\nprompt: {}\noutput-hash: {}\noutput-bytes: {}\nerror: {}\nstarted: {}\nfinished: {}\nduration: {}\n",
         arm.id,
         arm.name,
         arm.root_id,
         arm.parent_arm_id.as_deref().unwrap_or("-"),
         arm.status.as_str(),
         arm.prompt_hash,
+        arm.prompt,
         arm.output_hash.as_deref().unwrap_or("-"),
         arm.output_bytes,
         arm.error_code.as_deref().unwrap_or("-"),
@@ -649,6 +663,8 @@ fn parse_arm_snap(content: &str) -> Option<ArmRecord> {
     let mut status = ArmStatus::Running;
     let mut prompt_hash = String::new();
     let mut output_hash = None;
+    let mut prompt = String::new();
+
     let mut output_bytes = 0usize;
     let mut error_code = None;
     let mut started_at = 0u128;
@@ -682,6 +698,7 @@ fn parse_arm_snap(content: &str) -> Option<ArmRecord> {
                 };
             }
             "prompt-hash" => prompt_hash = value.to_string(),
+            "prompt" => prompt = value.to_string(),
             "output-hash" if value != "-" => {
                 output_hash = Some(value.to_string());
             }
@@ -711,6 +728,7 @@ fn parse_arm_snap(content: &str) -> Option<ArmRecord> {
         parent_arm_id,
         status,
         prompt_hash,
+        prompt,
         output_hash,
         output_bytes,
         error_code,

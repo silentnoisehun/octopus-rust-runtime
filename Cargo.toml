@@ -3,6 +3,10 @@ name = "octopus-runtime"
 version = "2.5.0"
 edition = "2021"
 description = "Standalone native Rust blade runtime for Octopus orchestration"
+license = "MIT"
+repository = "https://github.com/mater/octopus-rust-runtime"
+homepage = "https://github.com/mater/octopus-rust-runtime"
+publish = false
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

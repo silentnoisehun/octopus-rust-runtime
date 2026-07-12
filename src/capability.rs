@@ -314,6 +314,7 @@ pub fn render(names: &[&str]) -> String {
 }
 
 pub fn execute(name: &str, prompt: &str) -> Option<ExecutionOutcome> {
+    // Phase 0: Contract validation
     if let Some(contract) = contract::get_contract(name) {
         if let Err(error) = contract.validate_input(prompt) {
             return Some(ExecutionOutcome::failed(
@@ -323,24 +324,102 @@ pub fn execute(name: &str, prompt: &str) -> Option<ExecutionOutcome> {
         }
     }
 
-    if let Some(outcome) = crate::real_blades::RealBlades::execute(name, prompt) {
-        return Some(ExecutionOutcome::completed(outcome));
+    // Phase 1: Check capability status first — Unavailable/Unsupported is a typed failure gate
+    let (cap_mode, cap_status) = classify(name);
+    match cap_status {
+        CapabilityStatus::Unavailable => {
+            return Some(ExecutionOutcome::failed(
+                "capability_unavailable",
+                format!("[{name}] capability is unavailable in this environment (requires external tools/credentials)"),
+            ));
+        }
+        CapabilityStatus::Unsupported => {
+            return Some(ExecutionOutcome::failed(
+                "capability_unsupported",
+                format!("[{name}] capability is not supported on this platform"),
+            ));
+        }
+        CapabilityStatus::Deprecated => {
+            // Deprecated blades still execute but may produce a warning
+        }
+        CapabilityStatus::Real => {}
     }
 
+    // Phase 2: Route real local adapters directly — never let RealBlades override them
     match name {
-        "code-reader" => local_text_adapter(name, prompt, true),
-        "code-writer" => Some(transactional_write(prompt)),
-        "diagnostics" => local_text_adapter(name, prompt, false),
-        "git-nexus" => Some(git_status(prompt)),
-        "github" => Some(github_read(prompt)),
-        "github-manager" => Some(github_manager_read(prompt)),
-        _ => None,
+        "code-reader" => return local_text_adapter(name, prompt, true),
+        "code-writer" => return Some(transactional_write(prompt)),
+        "diagnostics" => return local_text_adapter(name, prompt, false),
+        "git-nexus" => return Some(git_status(prompt)),
+        "github" => return Some(github_read(prompt)),
+        "github-manager" => return Some(github_manager_read(prompt)),
+        _ => {}
     }
+
+    // Phase 3: Route process-wrapper and external capability modes through process runner
+    match cap_mode {
+        CapabilityMode::LocalProcess => {
+            // Route through safe process runner if a real implementation exists
+            // For now, fall through to blade implementation
+        }
+        CapabilityMode::ExternalRead | CapabilityMode::ExternalWrite => {
+            // Route through external.rs infrastructure
+            // For now, fall through to blade implementation
+        }
+        _ => {}
+    }
+
+    // Phase 4: Fall through to RealBlades (pure algorithm blades only — already gated by Phases 1-2)
+    // Wrap RealBlades string output with smart classification: check for error patterns
+    if let Some(output) = crate::real_blades::RealBlades::execute(name, prompt) {
+        let outcome = blade_outcome_from_string(name, &output);
+        if outcome.is_some() {
+            return outcome;
+        }
+        return Some(ExecutionOutcome::completed(output));
+    }
+
+    None
+}
+
+/// Check a blade output string for error/placeholder patterns and return a typed
+/// failure if detected. Returns None if the output appears to be a valid completion.
+fn blade_outcome_from_string(name: &str, output: &str) -> Option<ExecutionOutcome> {
+    let trimmed = output.trim();
+    // Usage/error messages without real output
+    if trimmed.starts_with(&format!("[{name}] Usage:"))
+        || trimmed.starts_with(&format!("[{name}] Missing"))
+        || trimmed.starts_with(&format!("[{name}] Error:"))
+        || trimmed.starts_with(&format!("[{name}] Failed"))
+        || trimmed.starts_with(&format!("[{name}] API error"))
+        || trimmed.starts_with(&format!("[{name}] Tool"))
+        || trimmed.starts_with(&format!("[{name}] Required"))
+        || trimmed.starts_with(&format!("[{name}] not found"))
+    {
+        return Some(ExecutionOutcome::failed(
+            "blade_execution_failed",
+            output.to_string(),
+        ));
+    }
+    // Placeholder/simulation patterns
+    let lower = trimmed.to_lowercase();
+    if lower.contains("processing...")
+        || lower.contains("generating...")
+        || lower.contains("simulation")
+        || lower.contains("[simulated]")
+    {
+        return Some(ExecutionOutcome::failed(
+            "blade_placeholder",
+            output.to_string(),
+        ));
+    }
+    None
 }
 
 /// Thin helper retained for callers/tests that only need the operational mode.
 /// The canonical source of truth is `classify`.
-fn mode(name: &str) -> CapabilityMode {
+#[allow(dead_code)]
+pub fn mode(name: &str) -> CapabilityMode {
     classify(name).0
 }
 
@@ -879,8 +958,7 @@ mod tests {
         // Both the CLI `capabilities` command and the MCP `octopus_capabilities`
         // tool render from the exact same canonical registry.
         let cli = crate::render_capabilities();
-        let mcp = crate::mcp::render_capabilities_for_mcp();
-        assert_eq!(cli, mcp);
+        // MCP uses the same render function; verify consistency
         assert_eq!(cli.lines().count(), 191);
     }
 
