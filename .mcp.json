@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "octopus-runtime": {
+      "command": "D:\\codex\\octopus-rust-runtime\\target\\release\\octopus-runtime.exe",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
