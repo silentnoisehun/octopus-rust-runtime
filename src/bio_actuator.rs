@@ -860,13 +860,34 @@ pub fn crispr_apply(
     confirm: &str,
     allow_write: bool,
 ) -> ExecutionOutcome {
+    crispr_apply_with_guard(
+        target,
+        replacement,
+        health_args,
+        confirm,
+        allow_write,
+        run_endurance_guard,
+    )
+}
+
+fn crispr_apply_with_guard<F>(
+    target: &Path,
+    replacement: &Path,
+    health_args: &[String],
+    confirm: &str,
+    allow_write: bool,
+    guard: F,
+) -> ExecutionOutcome
+where
+    F: FnOnce() -> Result<(), String>,
+{
     if !allow_write {
         return ExecutionOutcome::failed(
             "crispr_permission_required",
             "CRISPR apply requires --allow-write",
         );
     }
-    if let Err(error) = run_endurance_guard() {
+    if let Err(error) = guard() {
         return ExecutionOutcome::failed("endurance_lease_active", error);
     }
     let plan = match build_crispr_plan(target, replacement, health_args) {
@@ -1031,7 +1052,10 @@ mod tests {
         fs::write(&target, "old").unwrap();
         fs::write(&replacement, "new").unwrap();
         let plan = build_crispr_plan(&target, &replacement, &[]).unwrap();
-        let outcome = crispr_apply(&target, &replacement, &[], &plan.confirmation, true);
+        let outcome =
+            crispr_apply_with_guard(&target, &replacement, &[], &plan.confirmation, true, || {
+                Ok(())
+            });
         assert!(!outcome.is_failed(), "{}", outcome.output);
         assert_eq!(fs::read_to_string(&target).unwrap(), "new");
         assert_eq!(fs::read_to_string(&plan.backup).unwrap(), "old");

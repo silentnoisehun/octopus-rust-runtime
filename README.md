@@ -89,7 +89,7 @@ octopus-runtime bio crispr plan <target> <replacement> [--health-arg <arg> ...]
 octopus-runtime bio crispr apply <target> <replacement> --confirm <CRI-token> --allow-write [--health-arg <arg> ...]
 ```
 
-Mutation applies fail closed when the endurance guard or durable audit snapshot is unavailable and hold an exclusive runtime-state lock. Macrophage binds termination to a revalidated process object and writes a prepared antigen record before the kill. Synaptic accepts only an exact sealed archive inventory and rolls back on validation failure. CRISPR revalidates both staged bytes and the renamed backup before commit, retains the verified backup, and rolls back on a failed health check. A text-file CRISPR operation with no `--health-arg` is explicitly reported as `hash-only`; it is not presented as an executable health check.
+Mutation applies fail closed when the endurance guard or durable audit snapshot is unavailable and hold an exclusive runtime-state lock. Tests inject an isolated guard result; production calls still execute the configured external lease guard. Macrophage binds termination to a revalidated process object and writes a prepared antigen record before the kill. Synaptic accepts only an exact sealed archive inventory and rolls back on validation failure. CRISPR revalidates both staged bytes and the renamed backup before commit, retains the verified backup, and rolls back on a failed health check. A text-file CRISPR operation with no `--health-arg` is explicitly reported as `hash-only`; it is not presented as an executable health check.
 
 `plan` never performs the requested external mutation, but it does create the normal root/arm audit snapshots and Resonance Log entry.
 
