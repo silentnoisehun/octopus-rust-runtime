@@ -1,0 +1,67 @@
+{
+  "schema": "octopus.arm-manifest/v1",
+  "objective": "Prove three independent biological homeostasis analyses",
+  "arms": [
+    {
+      "id": "macrophage-scan",
+      "spec": "macrophage",
+      "mission": "Detect known incident signatures without claiming mutation",
+      "input": "panic after a memory leak while a thread is in deadlock",
+      "effect": "read",
+      "completion": "The scan reports all observed signatures and remains advisory",
+      "stop_condition": "Stop after one bounded input scan",
+      "evidence": [
+        {
+          "kind": "output_contains",
+          "value": "finding=memory_leak"
+        },
+        {
+          "kind": "output_contains",
+          "value": "finding=deadlock"
+        },
+        {
+          "kind": "output_contains",
+          "value": "action=advisory-only"
+        }
+      ]
+    },
+    {
+      "id": "synaptic-prune",
+      "spec": "synaptic-pruning-v2",
+      "mission": "Measure duplicate context records and preserve unique paths",
+      "input": "route alpha\nroute beta\nroute alpha",
+      "effect": "read",
+      "completion": "One observed duplicate is reported as pruned",
+      "stop_condition": "Stop after one deterministic context pass",
+      "evidence": [
+        {
+          "kind": "output_contains",
+          "value": "kept=2"
+        },
+        {
+          "kind": "output_contains",
+          "value": "pruned=1"
+        }
+      ]
+    },
+    {
+      "id": "mitosis-plan",
+      "spec": "mitosis",
+      "mission": "Split a compound engineering task into bounded candidate units",
+      "input": "inspect state; repair parser; verify tests",
+      "effect": "read",
+      "completion": "Three candidate work units are reported",
+      "stop_condition": "Stop after the bounded decomposition pass",
+      "evidence": [
+        {
+          "kind": "output_contains",
+          "value": "candidate_units=3"
+        },
+        {
+          "kind": "output_contains",
+          "value": "suggested_arms=3"
+        }
+      ]
+    }
+  ]
+}

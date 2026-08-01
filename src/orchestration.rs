@@ -1,7 +1,8 @@
 use crate::outcome::ExecutionOutcome;
+use crate::snapshot::{atomic_write, SnapshotError};
+use crate::state_path::state_dir;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -97,19 +98,18 @@ fn state() -> std::sync::MutexGuard<'static, Option<OrchestrationState>> {
     STATE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn state_dir() -> PathBuf {
-    env::var_os("OCTOPUS_STATE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(r"D:\codex\.octopus-rust"))
-}
-
 pub fn create_root(prompt: &str) -> RootRecord {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
 
-    let id = format!("root-{}-{}", ROOT_SEQ.fetch_add(1, Ordering::Relaxed), now);
+    let id = format!(
+        "root-{}-{}-{}",
+        std::process::id(),
+        ROOT_SEQ.fetch_add(1, Ordering::Relaxed),
+        now
+    );
 
     let prompt_hash = hash(prompt);
 
@@ -138,7 +138,7 @@ pub fn create_root(prompt: &str) -> RootRecord {
     });
 
     // Persist to disk
-    persist_root(&record);
+    report_persist_error("root", &record.id, persist_root(&record));
 
     record
 }
@@ -155,8 +155,9 @@ pub fn create_arm(
         .as_millis();
 
     let id = format!(
-        "arm-{}-{}-{}",
+        "arm-{}-{}-{}-{}",
         sanitize_name(name),
+        std::process::id(),
         ARM_SEQ.fetch_add(1, Ordering::Relaxed),
         now
     );
@@ -181,9 +182,12 @@ pub fn create_arm(
     let s = s.get_or_insert_with(OrchestrationState::new);
     s.arms.insert(id.clone(), record.clone());
 
-    if let Some(root) = s.roots.get_mut(root_id) {
+    let root_to_persist = if let Some(root) = s.roots.get_mut(root_id) {
         root.children.push(id.clone());
-    }
+        Some(root.clone())
+    } else {
+        None
+    };
 
     s.events.push(EventEntry {
         timestamp: now,
@@ -194,7 +198,10 @@ pub fn create_arm(
     });
 
     // Persist to disk
-    persist_arm(&record);
+    if let Some(root) = root_to_persist {
+        report_persist_error("root", &root.id, persist_root(&root));
+    }
+    report_persist_error("arm", &record.id, persist_arm(&record));
 
     record
 }
@@ -244,7 +251,7 @@ pub fn finish_arm(arm_id: &str, outcome: &ExecutionOutcome) {
         });
 
         // Persist to disk
-        persist_arm(arm);
+        report_persist_error("arm", &arm.id, persist_arm(arm));
     }
 }
 
@@ -254,32 +261,52 @@ pub fn finish_root(root_id: &str, outcome: &ExecutionOutcome) {
         .unwrap_or_default()
         .as_millis();
 
-    let mut s = state();
-    let s = s.get_or_insert_with(OrchestrationState::new);
+    let (finished_root, finished_arms) = {
+        let mut state_guard = state();
+        let state = state_guard.get_or_insert_with(OrchestrationState::new);
 
-    if let Some(root) = s.roots.get_mut(root_id) {
-        root.status = if outcome.is_failed() {
-            ArmStatus::Failed
+        let finished_root = if let Some(root) = state.roots.get_mut(root_id) {
+            root.status = if outcome.is_failed() {
+                ArmStatus::Failed
+            } else {
+                ArmStatus::Completed
+            };
+            root.output_hash = Some(hash(&outcome.output));
+            root.finished_at = Some(now);
+            root.duration_ms = Some(now - root.started_at);
+
+            state.events.push(EventEntry {
+                timestamp: now,
+                root_id: root_id.to_string(),
+                arm_id: root_id.to_string(),
+                event_type: format!("root_{}", root.status.as_str()),
+                details: outcome
+                    .code
+                    .clone()
+                    .unwrap_or_else(|| "success".to_string()),
+            });
+
+            report_persist_error("root", &root.id, persist_root(root));
+            Some(root.clone())
         } else {
-            ArmStatus::Completed
+            None
         };
-        root.output_hash = Some(hash(&outcome.output));
-        root.finished_at = Some(now);
-        root.duration_ms = Some(now - root.started_at);
+        let finished_arms = finished_root
+            .as_ref()
+            .map(|root| {
+                root.children
+                    .iter()
+                    .filter_map(|arm_id| state.arms.get(arm_id).cloned())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        (finished_root, finished_arms)
+    };
 
-        s.events.push(EventEntry {
-            timestamp: now,
-            root_id: root_id.to_string(),
-            arm_id: root_id.to_string(),
-            event_type: format!("root_{}", root.status.as_str()),
-            details: outcome
-                .code
-                .clone()
-                .unwrap_or_else(|| "success".to_string()),
-        });
-
-        // Persist to disk
-        persist_root(root);
+    if let Some(root) = finished_root {
+        if let Err(error) = crate::resonance::append_root(&root, &finished_arms, outcome) {
+            eprintln!("[resonance] append failed for {}: {error}", root.id);
+        }
     }
 }
 
@@ -299,7 +326,7 @@ pub fn cancel_arm(arm_id: &str) -> Result<(), ExecutionOutcome> {
         )
     })?;
 
-    if arm.status != ArmStatus::Running {
+    if !matches!(arm.status, ArmStatus::Running | ArmStatus::Resumed) {
         return Err(ExecutionOutcome::failed(
             "arm_not_running",
             format!(
@@ -321,7 +348,7 @@ pub fn cancel_arm(arm_id: &str) -> Result<(), ExecutionOutcome> {
         details: "Cancelled by user".to_string(),
     });
 
-    persist_arm(arm);
+    report_persist_error("arm", &arm.id, persist_arm(arm));
 
     Ok(())
 }
@@ -407,7 +434,7 @@ pub fn find_orphaned_arms() -> Vec<ArmRecord> {
 
     s.arms
         .values()
-        .filter(|arm| arm.status == ArmStatus::Running)
+        .filter(|arm| matches!(arm.status, ArmStatus::Running | ArmStatus::Resumed))
         .cloned()
         .collect()
 }
@@ -428,7 +455,10 @@ pub fn resume_arm(arm_id: &str) -> Result<ArmRecord, ExecutionOutcome> {
         )
     })?;
 
-    if arm.status != ArmStatus::Running && arm.status != ArmStatus::Failed {
+    if !matches!(
+        arm.status,
+        ArmStatus::Running | ArmStatus::Failed | ArmStatus::Resumed
+    ) {
         return Err(ExecutionOutcome::failed(
             "arm_not_resumable",
             format!(
@@ -452,7 +482,7 @@ pub fn resume_arm(arm_id: &str) -> Result<ArmRecord, ExecutionOutcome> {
     });
 
     let record = arm.clone();
-    persist_arm(&record);
+    report_persist_error("arm", &record.id, persist_arm(&record));
 
     Ok(record)
 }
@@ -482,6 +512,20 @@ pub fn list_events(root_id: &str) -> Vec<EventEntry> {
         .collect()
 }
 
+pub fn root_snapshot_is_durable(root_id: &str) -> bool {
+    state_dir()
+        .join("roots")
+        .join(format!("{root_id}.snap"))
+        .is_file()
+}
+
+pub fn arm_snapshot_is_durable(arm_id: &str) -> bool {
+    state_dir()
+        .join("arms")
+        .join(format!("{arm_id}.snap"))
+        .is_file()
+}
+
 fn hash(input: &str) -> String {
     hex::encode(Sha256::digest(input.as_bytes()))
 }
@@ -501,13 +545,32 @@ fn sanitize_name(name: &str) -> String {
         .collect()
 }
 
-fn persist_root(root: &RootRecord) {
-    let dir = state_dir().join("roots");
-    let _ = fs::create_dir_all(&dir);
+fn report_persist_error(kind: &str, id: &str, result: Result<(), SnapshotError>) {
+    if let Err(error) = result {
+        eprintln!("[orchestration] failed to persist {kind} {id}: {error}");
+    }
+}
 
+fn clean_field(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| {
+            if character.is_control() {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn persist_root(root: &RootRecord) -> Result<(), SnapshotError> {
+    let dir = state_dir().join("roots");
     let path = dir.join(format!("{}.snap", root.id));
     let content = format!(
-        "OCTOPUS ROOT\nid: {}\nstatus: {}\nprompt-hash: {}\ninput-hash: {}\noutput-hash: {}\nstarted: {}\nfinished: {}\nduration: {}\nchildren: {}\n",
+        "OCTOPUS ROOT\nschema: 2\nid: {}\nstatus: {}\nprompt-hash: {}\ninput-hash: {}\noutput-hash: {}\nstarted: {}\nfinished: {}\nduration: {}\nchildren: {}\n",
         root.id,
         root.status.as_str(),
         root.prompt_hash,
@@ -518,33 +581,36 @@ fn persist_root(root: &RootRecord) {
         root.duration_ms.map(|d| format!("{d}ms")).unwrap_or_else(|| "-".to_string()),
         root.children.join(", ")
     );
-
-    let _ = fs::write(&path, content);
+    atomic_write(&path, &content)
 }
 
-fn persist_arm(arm: &ArmRecord) {
+fn persist_arm(arm: &ArmRecord) -> Result<(), SnapshotError> {
     let dir = state_dir().join("arms");
-    let _ = fs::create_dir_all(&dir);
-
     let path = dir.join(format!("{}.snap", arm.id));
+    let prompt_json = serde_json::to_string(&arm.prompt).unwrap_or_else(|_| "\"\"".to_string());
     let content = format!(
-        "OCTOPUS ARM\nid: {}\nname: {}\nroot: {}\nparent: {}\nstatus: {}\nprompt-hash: {}\nprompt: {}\noutput-hash: {}\noutput-bytes: {}\nerror: {}\nstarted: {}\nfinished: {}\nduration: {}\n",
+        "OCTOPUS ARM\nschema: 2\nid: {}\nname: {}\nroot: {}\nparent: {}\nstatus: {}\nprompt-hash: {}\nprompt-json: {}\noutput-hash: {}\noutput-bytes: {}\nerror: {}\nstarted: {}\nfinished: {}\nduration: {}\n",
         arm.id,
-        arm.name,
+        clean_field(&arm.name),
         arm.root_id,
-        arm.parent_arm_id.as_deref().unwrap_or("-"),
+        arm.parent_arm_id
+            .as_deref()
+            .map(clean_field)
+            .unwrap_or_else(|| "-".to_string()),
         arm.status.as_str(),
         arm.prompt_hash,
-        arm.prompt,
+        prompt_json,
         arm.output_hash.as_deref().unwrap_or("-"),
         arm.output_bytes,
-        arm.error_code.as_deref().unwrap_or("-"),
+        arm.error_code
+            .as_deref()
+            .map(clean_field)
+            .unwrap_or_else(|| "-".to_string()),
         arm.started_at,
         arm.finished_at.map(|t| t.to_string()).unwrap_or_else(|| "-".to_string()),
         arm.duration_ms.map(|d| format!("{d}ms")).unwrap_or_else(|| "-".to_string()),
     );
-
-    let _ = fs::write(&path, content);
+    atomic_write(&path, &content)
 }
 
 pub fn init_from_disk() {
@@ -553,6 +619,10 @@ pub fn init_from_disk() {
 
     let mut s = state();
     let s = s.get_or_insert_with(OrchestrationState::new);
+    s.roots.clear();
+    s.arms.clear();
+    s.events.clear();
+    s.file_locks.clear();
 
     // Load roots
     if let Ok(entries) = fs::read_dir(&root_dir) {
@@ -561,7 +631,10 @@ pub fn init_from_disk() {
                 if name.ends_with(".snap") {
                     if let Ok(content) = fs::read_to_string(entry.path()) {
                         let root = parse_root_snap(&content);
-                        if let Some(root) = root {
+                        if let Some(root) = root.filter(|record| {
+                            entry.path().file_stem().and_then(|name| name.to_str())
+                                == Some(record.id.as_str())
+                        }) {
                             s.roots.insert(root.id.clone(), root);
                         }
                     }
@@ -577,7 +650,10 @@ pub fn init_from_disk() {
                 if name.ends_with(".snap") {
                     if let Ok(content) = fs::read_to_string(entry.path()) {
                         let arm = parse_arm_snap(&content);
-                        if let Some(arm) = arm {
+                        if let Some(arm) = arm.filter(|record| {
+                            entry.path().file_stem().and_then(|name| name.to_str())
+                                == Some(record.id.as_str())
+                        }) {
                             s.arms.insert(arm.id.clone(), arm);
                         }
                     }
@@ -587,9 +663,21 @@ pub fn init_from_disk() {
     }
 }
 
+fn parse_status(value: &str) -> Option<ArmStatus> {
+    match value {
+        "running" => Some(ArmStatus::Running),
+        "completed" => Some(ArmStatus::Completed),
+        "failed" => Some(ArmStatus::Failed),
+        "cancelled" => Some(ArmStatus::Cancelled),
+        "timed_out" => Some(ArmStatus::TimedOut),
+        "resumed" => Some(ArmStatus::Resumed),
+        _ => None,
+    }
+}
+
 fn parse_root_snap(content: &str) -> Option<RootRecord> {
     let mut id = String::new();
-    let mut status = ArmStatus::Running;
+    let mut status = None;
     let mut prompt_hash = String::new();
     let mut input_hash = String::new();
     let mut output_hash = None;
@@ -608,17 +696,7 @@ fn parse_root_snap(content: &str) -> Option<RootRecord> {
 
         match key {
             "id" => id = value.to_string(),
-            "status" => {
-                status = match value {
-                    "running" => ArmStatus::Running,
-                    "completed" => ArmStatus::Completed,
-                    "failed" => ArmStatus::Failed,
-                    "cancelled" => ArmStatus::Cancelled,
-                    "timed_out" => ArmStatus::TimedOut,
-                    "resumed" => ArmStatus::Resumed,
-                    _ => ArmStatus::Running,
-                };
-            }
+            "status" => status = parse_status(value),
             "prompt-hash" => prompt_hash = value.to_string(),
             "input-hash" => input_hash = value.to_string(),
             "output-hash" if value != "-" => {
@@ -644,7 +722,7 @@ fn parse_root_snap(content: &str) -> Option<RootRecord> {
 
     Some(RootRecord {
         id,
-        status,
+        status: status?,
         prompt_hash,
         input_hash,
         output_hash,
@@ -660,7 +738,7 @@ fn parse_arm_snap(content: &str) -> Option<ArmRecord> {
     let mut name = String::new();
     let mut root_id = String::new();
     let mut parent_arm_id = None;
-    let mut status = ArmStatus::Running;
+    let mut status = None;
     let mut prompt_hash = String::new();
     let mut output_hash = None;
     let mut prompt = String::new();
@@ -686,19 +764,12 @@ fn parse_arm_snap(content: &str) -> Option<ArmRecord> {
             "parent" if value != "-" => {
                 parent_arm_id = Some(value.to_string());
             }
-            "status" => {
-                status = match value {
-                    "running" => ArmStatus::Running,
-                    "completed" => ArmStatus::Completed,
-                    "failed" => ArmStatus::Failed,
-                    "cancelled" => ArmStatus::Cancelled,
-                    "timed_out" => ArmStatus::TimedOut,
-                    "resumed" => ArmStatus::Resumed,
-                    _ => ArmStatus::Running,
-                };
-            }
+            "status" => status = parse_status(value),
             "prompt-hash" => prompt_hash = value.to_string(),
             "prompt" => prompt = value.to_string(),
+            "prompt-json" => {
+                prompt = serde_json::from_str(value).ok()?;
+            }
             "output-hash" if value != "-" => {
                 output_hash = Some(value.to_string());
             }
@@ -726,7 +797,7 @@ fn parse_arm_snap(content: &str) -> Option<ArmRecord> {
         name,
         root_id,
         parent_arm_id,
-        status,
+        status: status?,
         prompt_hash,
         prompt,
         output_hash,
@@ -823,5 +894,29 @@ mod tests {
     #[test]
     fn sanitize_name_removes_special_chars() {
         assert_eq!(sanitize_name("hello world!"), "hello-world-");
+    }
+
+    #[test]
+    fn arm_parser_round_trips_multiline_prompt_json() {
+        let prompt = "first line\nstatus: failed\nroot: forged\t✓";
+        let encoded = serde_json::to_string(prompt).unwrap();
+        let content = format!(
+            "OCTOPUS ARM\nschema: 2\nid: arm-safe\nname: summarize\nroot: root-safe\nparent: -\nstatus: running\nprompt-hash: hash\nprompt-json: {encoded}\noutput-hash: -\noutput-bytes: 0\nerror: -\nstarted: 1\nfinished: -\nduration: -\n"
+        );
+
+        let arm = parse_arm_snap(&content).expect("valid arm snapshot");
+        assert_eq!(arm.prompt, prompt);
+        assert_eq!(arm.status, ArmStatus::Running);
+        assert_eq!(arm.parent_arm_id, None);
+    }
+
+    #[test]
+    fn snapshot_parsers_reject_missing_or_unknown_status() {
+        let root_without_status = "OCTOPUS ROOT\nid: root-invalid\nstarted: 1\n";
+        let arm_with_unknown_status =
+            "OCTOPUS ARM\nid: arm-invalid\nstatus: corrupted\nstarted: 1\n";
+
+        assert!(parse_root_snap(root_without_status).is_none());
+        assert!(parse_arm_snap(arm_with_unknown_status).is_none());
     }
 }

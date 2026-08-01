@@ -1,79 +1,335 @@
-[See CHANGELOG.md](./CHANGELOG.md) for complete version history.
+# Octopus Exoskeleton
 
+> Production Safety Runtime for AI Systems.
 
-# Octopus Rust Runtime v2.5
+Octopus Exoskeleton is a Rust-based safety and execution layer for production AI systems. It separates model decisions from operational execution: the AI interprets the goal and selects an allowed route, deterministic blades perform bounded work under explicit contracts, and the Exoskeleton enforces capability profiles, authorization, isolation, typed failures, snapshots, audit trails, and rollback.
 
-Standalone native Rust blade runtime for Octopus orchestration.
+It does not claim to make an AI model infallible. It prevents a wrong model decision from becoming an unrestricted, unauthorized, irreversible, or invisible operation.
 
-Version 2.5.0 � 191 capabilities, 273 tests, panic-free snapshots, real root-arm lifecycle.
+This separation also reduces latency and token use. Routine operations run locally without repeated model calls, independent arms can execute concurrently, and every material action remains bounded and auditable.
 
-## Current State (Post-Audit v2.5)
+> **AI decides within policy. Blades execute within contracts. The Exoskeleton enforces the boundary.**
 
-| Metric | Value |
-|--------|-------|
-| Build | ? clean |
-| Clippy | ? clean (strict `-D warnings`) |
-| Tests | 272 (253 unit + 19 integration), 0 failed |
-| Capabilities | 191 (list) / 191 (capabilities) |
-| Release SHA-256 | C3FA970188F01E400B0B27EA5375AB74A247583DF91AF69EF8C0772288C16734 |
-| Installed SHA-256 | Same as release (verified) |
-| Target in Git | Removed (`.gitignore` + `git rm --cached`) |
-| Cargo metadata | license=MIT, repository, publish=false |
+## Runtime model
 
-## Audit Fixes Applied
+Octopus is an **orchestration topology**, not a scheduler. It models work as a tree: one **head** (root) owns the decision, and multiple **arms** (blades) execute independently. The Rust runtime is the engine that makes this topology real — it creates roots, spawns arms, routes blades through capability gates, persists snapshots, and supports resume, retry, and cancel.
 
-1. **Typed execution**: `capability::execute` uses phase-based routing. Unavailable/Unsupported
-   capabilities return typed failures, not Completed-wrapped strings.
-2. **Real adapters first**: code-reader, code-writer, diagnostics, git-nexus, github,
-   github-manager route directly, never through RealBlades.
-3. **Root-arm lifecycle**: Every run, arm, pipeline uses create_root/create_arm/finish_arm/finish_root.
-4. **Real resume/retry/cancel**: resume dispatches orphaned work; retry re-executes with
-   stored prompt; cancel attempts process termination.
-5. **Panic-free snapshots**: No `.expect()` on I/O. API returns `Result<T, SnapshotError>`.
-   Drop is panic-safe.
-6. **Clippy**: Unused `mode` and `render_capabilities_for_mcp` cleaned.
-7. **Integration tests**: 20 new binary/integration tests in `tests/`.
+You give it a prompt. It splits the work. Arms run. Results converge. Everything is recorded.
 
-## Commands
+## Why Octopus?
 
-```
-cargo fmt --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
+- **One root, one decision** — arms never create sub-roots, so accountability is never diluted
+- **Typed failures, always** — Unavailable, Unsupported, execution errors, I/O errors: every failure has a code, not a string
+- **Panic-free** — no `.expect()` on I/O paths. Snapshots use `Result<T, SnapshotError>`. Drop is safe.
+- **Resume and retry with real state** — resume picks up orphaned arms, retry re-executes with the stored prompt, not a guess
+- **Auditable** — every root, arm, and event is persisted. You can `status <id>` any past execution
+- **Crash-safe state** — snapshots are replaced atomically, event writes are process-locked, IDs include the process, and malformed status records fail closed
+- **Minimal-token Marshal** — local task classification, safe-ready topology filtering, OS-CSPRNG psi selection, compact receipts, and explicit write permission before dispatch
+- **225 registry entries with typed status** — 168 are currently marked `real`, 55 are `unavailable`, and 2 are `unsupported` on Windows. The registry includes 33 tested native Bio-Binaries process targets while keeping the Bio crate and executable boundary separate from the Octopus process.
+
+## Quick Start
+
+### Build
+
+```powershell
 cargo build --release --locked
 ```
 
-CLI commands: `list`, `capabilities`, `run`, `arm`, `pipeline`, `status`, `resume`,
-`retry`, `cancel`, `orphans`, `mcp`.
+The binary lands at `target/release/octopus-runtime.exe`.
 
-## Modified Files (6)
+`code-writer` accepts its transactional contract through stdin as
+`path|expected_sha256_or_NEW|content`. Stdin content is byte-preserving,
+including multiline text, trailing spaces, and the final newline.
 
-- `Cargo.toml` � Added license, repository, homepage, publish=false
-- `src/capability.rs` � Phase-based routing, Unavailable/Unsupported gating, real adapter priority
-- `src/lib.rs` � Real root-arm lifecycle, actual resume/retry/cancel execution
-- `src/mcp.rs` � Removed unused render_capabilities_for_mcp
-- `src/orchestration.rs` � Added prompt field to ArmRecord for genuine re-execution
-- `src/snapshot.rs` � Removed all .expect() panics, Result-based API, panic-safe Drop
+### Your First Pipeline
 
-## New Files (3)
+```powershell
+octopus-runtime pipeline "summarize || code-analysis" "explain what this codebase does"
+```
 
-- `.gitignore` � `/target/` and other build artifacts
-- `tests/integration_cli.rs` � 11 integration tests for CLI, typed routing
-- `tests/integration_orch.rs` � 9 integration tests for orchestration, side effects
+This creates one root, spawns two arms (`summarize` and `code-analysis`), executes them independently, and converges the results.
 
-## Capability Routing
+### Require Evidence From Every Arm
 
-Phase 1: Check capability status (Unavailable/Unsupported � typed failure)
-Phase 2: Route real local adapters directly
-Phase 3: Route process/external blades through safe infrastructure
-Phase 4: Fall through to RealBlades for pure algorithm blades
+The legacy `pipeline` command gives every arm the same prompt. Use an evidence-bound manifest when arms need distinct missions, inputs, path boundaries, stop conditions, and completion proof:
 
-## Orchestration Lifecycle
+```powershell
+octopus-runtime manifest examples/evidence-manifest.json
+```
 
-1. create_root(prompt) � RootRecord (Running)
-2. create_arm(root_id, name, prompt, parent_id) � ArmRecord
-3. Execute blade(s)
-4. finish_arm(arm_id, outcome)
-5. finish_root(root_id, outcome)
+The runtime validates the complete manifest before creating snapshots, then runs its arms concurrently under one root. An arm is marked `completed` only after all declared evidence rules pass. Supported evidence kinds are `output_contains`, `min_output_bytes`, `file_exists`, and `file_sha256`. Filesystem evidence must stay inside the arm's `allowed_paths`; write-capable arms additionally require `--allow-write`.
 
-Snapshot parent uses actual root ID, not literal "O".
+### Activate Biological Homeostasis
+
+The Marshal now recognizes incident and memory-pressure language and activates tested biological analysis arms automatically:
+
+```powershell
+octopus-runtime marshal --execute "inspect the crash and deadlock"
+octopus-runtime marshal --execute "prune repeated stale context from memory"
+octopus-runtime manifest examples/bio-homeostasis-manifest.json
+```
+
+`macrophage` performs a bounded input-signature scan, `immune-antibody` maps observed signatures to response plans, `synaptic-pruning[-v2]` measures duplicate context records, `dna-hebbian` builds deterministic association receipts, and `mitosis` proposes bounded work units. These adapters explicitly report `mutation=none` or `advisory-only`; they do not claim that a process was killed, memory was deleted, or a runtime was patched.
+
+### Apply Guarded Bio Actuators
+
+The separate `bio` control plane can perform three real mutations, but never from an advisory blade or an automatic Marshal route. Every operation is two-phase: `plan` inspects the exact target and emits a content- or identity-bound confirmation token; `apply` requires that token plus an explicit effect permission.
+
+```powershell
+# Terminate one revalidated, non-protected process.
+octopus-runtime bio macrophage plan <PID>
+octopus-runtime bio macrophage apply <PID> --confirm <MAC-token> --allow-kill
+
+# Archive Microscope state, run dream consolidation, then verify CRC and Merkle integrity.
+octopus-runtime bio synaptic plan
+octopus-runtime bio synaptic apply --confirm <SYN-token> --allow-write
+
+# Replace one allowed file transactionally; executable targets default to --version health.
+octopus-runtime bio crispr plan <target> <replacement> [--health-arg <arg> ...]
+octopus-runtime bio crispr apply <target> <replacement> --confirm <CRI-token> --allow-write [--health-arg <arg> ...]
+```
+
+Mutation applies fail closed when the endurance guard or durable audit snapshot is unavailable and hold an exclusive runtime-state lock. Macrophage binds termination to a revalidated process object and writes a prepared antigen record before the kill. Synaptic accepts only an exact sealed archive inventory and rolls back on validation failure. CRISPR revalidates both staged bytes and the renamed backup before commit, retains the verified backup, and rolls back on a failed health check. A text-file CRISPR operation with no `--health-arg` is explicitly reported as `hash-only`; it is not presented as an executable health check.
+
+`plan` never performs the requested external mutation, but it does create the normal root/arm audit snapshots and Resonance Log entry.
+
+### Run the Native Bio-Binaries Subsystem
+
+The complete Bio-Binaries v0.3.0 project is bundled at `bio-binaries/` as an independent Cargo crate with its own manifest, lockfile, source tree, tests and 33 release executables. Octopus does not port or merge their algorithms. It catalogs, authorizes, SHA-256-verifies and starts the exact native executables across a process boundary:
+
+```powershell
+octopus-runtime bio status
+octopus-runtime bio external hox-diff -- D:\codex\octopus-rust-runtime
+octopus-runtime bio external viral-infect --allow-mutation -- <fixture> --pattern alpha --replace beta --dry-run
+```
+
+Read targets can run directly. Write and control targets fail closed unless `--allow-mutation` is explicit. Arguments are forwarded exactly without shell tokenization; child execution is limited to 64 arguments, 32 KiB of input, 512 KiB of output and 30 seconds. Every executable is pinned by the embedded `bio-binaries/RELEASE_SHA256SUMS` inventory before launch. The filtered child environment preserves the standard Windows toolchain-root variables required for native MSVC discovery without inheriting arbitrary application secrets. Bio self-integrity state and temporary data live in a private subsystem directory instead of colliding with global `%TEMP%` state.
+
+Run the repeatable production smoke matrix with:
+
+```powershell
+.\scripts\verify-bio-system.ps1
+```
+
+The current matrix executes one safe functional path through every native target and verifies generated wave/sculpt/audio artifacts plus a real Ribosome source, compiled binary and executable receipt. The Bio crate also proves the CryoFrame -> BFSK WAV -> CryoFrame command path and durable WaveField-event restart path in Rust tests.
+
+### Benchmark the Complete Bio Subsystem
+
+The paired benchmark harness runs every Bio target directly and through the full Octopus production boundary with identical arguments, alternating order and isolated state:
+
+```powershell
+.\scripts\benchmark-bio-system.ps1 -Warmup 3 -Samples 20 -Parallelism @(1,2,4,8) -ParallelRepeats 3
+```
+
+On the recorded Ryzen 5 7535HS machine, all 660 measured pairs and all 48 scaling jobs completed. The median of the 33 direct module medians was 28.187 ms; through Octopus it was 51.966 ms. The typical paired production-boundary cost was 24.217 ms. Eight-way concurrency increased throughput from 16.998 to 40.930 jobs/s, a 2.408x speedup.
+
+These are small-fixture end-to-end latency results from the pre-v0.3.0 activation build, not a world-record or large-dataset throughput claim. Ribosome, Wave-Cryo and WaveField semantics changed after that run, so use the result as historical boundary evidence and rerun the harness for current per-module numbers. See [the complete benchmark result](./docs/BIO_BENCHMARK_RESULTS_20260801.md) and [methodology/claim limits](./docs/BIO_BENCHMARK_METHODOLOGY.md).
+
+### Verify the Resonance Chain
+
+Every finished Octopus root is appended to a sidecar SHA-256 chain containing root status, arm counts and input/output/topology hashes. The sidecar survives state-directory replacement and rejects duplicate roots or modified entries:
+
+```powershell
+octopus-runtime resonance --verify --tail 10
+```
+
+The technical chain is complemented by the human-readable workspace ledger at `D:\codex\RESONANCE_LOG.md`.
+
+### Let the Marshal Select the Topology
+
+```powershell
+octopus-runtime marshal "diagnose the failing parser tests"
+octopus-runtime marshal --execute "verify the runtime source"
+octopus-runtime marshal --execute --allow-write "<pipeline boundary contract>"
+```
+
+`marshal` is a thin technical control plane. It does not solve or repeat the task: it classifies the request with offline rules, keeps only `windows-offline`, non-external, at-least-`tested` topologies, selects among them with weighted operating-system entropy, and emits a compact auditable receipt. Without `--execute` it only plans. Write-capable topologies are refused unless `--allow-write` is also present; safety and authorization are never randomized.
+
+### Check What Happened
+
+```powershell
+octopus-runtime status root-12345-1-1783870125403
+```
+
+### List Everything Available
+
+```powershell
+octopus-runtime list              # all 225 capabilities
+octopus-runtime capabilities      # full registry with status, effect class and evidence grade
+octopus-runtime capabilities --profile windows-offline  # 164 safe-ready entries
+```
+
+## CLI Reference
+
+| Command | What it does |
+|---------|-------------|
+| `list` | List all 225 capability names. |
+| `capabilities [--profile all\|windows-offline]` | List capability status, execution class and verification grade; optionally keep only the 164 Windows/offline safe-ready routes. |
+| `run <blade> <prompt>` | Run one blade as a standalone arm |
+| `arm <blade> <prompt>` | Create and execute a single arm |
+| `pipeline <spec> <prompt>` | Run composite arms under one root. Use `+` for sequential, `\|\|` for parallel. |
+| `manifest [--allow-write] <path\|->` | Validate and execute a v1 per-arm JSON manifest; `-` reads exact JSON from stdin. Completion is gated by declared evidence. |
+| `resonance [--verify] [--tail N]` | Verify and inspect the append-only root-level SHA-256 resonance chain. |
+| `bio status` | Report the separate bundled Bio crate, release-pin state and availability of all 33 executables. |
+| `bio external <name> [--allow-mutation] -- [args...]` | Launch one SHA-256-pinned Bio executable with exact arguments and effect authorization. |
+| `bio <macrophage\|synaptic\|crispr> <plan\|apply>` | Plan or explicitly authorize guarded process termination, Microscope consolidation, or transactional file replacement. |
+| `marshal [--execute] [--allow-write] <task>` | Select a safe topology with a minimal-token, psi-weighted Marshal; dispatch only when explicitly requested. |
+| `status <root-or-arm-id>` | Query execution status and duration |
+| `resume <arm-id>` | Resume an orphaned or incomplete arm |
+| `retry <arm-id>` | Re-execute an arm with its original stored prompt |
+| `cancel <arm-id>` | Cancel a running arm |
+| `orphans` | List arms without a finished root |
+| `state-audit [--stale-hours N|--stale-minutes N]` | Read-only legacy-schema, stale-run and event-quality audit |
+| `state-repair [--stale-hours N|--stale-minutes N]` | Back up and normalize legacy state before closing stale runs and cleaning invalid events |
+| `state-backup create` | Create, seal and verify an immutable state backup with a SHA-256 inventory |
+| `state-backup verify <state-id>` | Verify a sealed backup, or report a readable legacy backup as unsealed |
+| `state-restore plan <state-id>` | Validate a sealed backup and show a non-mutating restore plan plus exact confirmation token |
+| `state-restore apply <state-id> --confirm <state-id>` | Restore under an exclusive lock with a sealed pre-backup, same-volume stage and crash journal |
+| `state-restore recover` | Recover, roll back or finish an interrupted journaled restore transaction |
+| `mcp` | Output MCP-compatible tool list |
+
+## Architecture
+
+### Capability Routing
+
+Every blade passes through four phases before execution:
+
+```
+Blade requested
+  → Phase 1: Status gate (Unavailable? Unsupported? → typed failure, stop)
+  → Phase 2: Direct adapter route (6 adapters skip advisory wrapping)
+  → Phase 3: Safe process/external infrastructure, including pinned Bio executables
+  → Phase 4: RealBlades smart wrapper (detects usage/placeholder/simulation)
+  → Execute
+```
+
+The six direct adapters are `code-reader`, `code-writer`, `diagnostics`, `git-nexus`, `github`, and `github-manager`. `pipeline-architect + rust-surgeon` runs through the transactional composite route; deterministic analysis blades such as `summarize` run through the advisory wrapper.
+
+The registry exposes three independent axes:
+
+- **status** — `real`, `unavailable`, `unsupported`, or `deprecated`;
+- **execution class** — `advisory`, `local-operation`, `external-integration`, or `control-plane`;
+- **verification grade** — `declared`, `tested`, or `observed`.
+
+`windows-offline` requires `real`, rejects `external-integration`, and requires at least `tested`. It does not grant write authority.
+
+### Orchestration Lifecycle
+
+```
+create_root(prompt)                   ─── root owns the decision
+  ├─ create_arm(root_id, name, prompt) ─── arm receives the contract
+  │    └─ execute_blade_under_root     ─── blade runs, no sub-root created
+  │         └─ finish_arm(id, outcome) ─── arm reports back
+  └─ finish_root(id, outcome)          ─── root closes the book
+```
+
+Snapshot events are appended at each step. The root ID is a real, queryable identifier — never a hash.
+After root completion, a separate append-only resonance sidecar records balanced arm counts plus input, output and topology hashes. Its hash chain is independent from mutable status rendering.
+
+### Project Structure
+
+```
+octopus-rust-runtime/
+├── src/
+│   ├── lib.rs              Entry point, CLI dispatch, internal executors
+│   ├── arm_manifest.rs     Per-arm schema, preflight boundaries and completion evidence gates
+│   ├── bio.rs              Truthful homeostasis adapters and deterministic bio activation outputs
+│   ├── bio_actuator.rs     Guarded plan/apply process, memory and file actuators
+│   ├── bio_system/         Separate Bio subsystem catalog, integrity pins and process adapter
+│   ├── capability.rs       Routing, effect/evidence axes, profiles and blade gates
+│   ├── orchestration.rs    Root/arm lifecycle, create_arm_restricted
+│   ├── resonance.rs        Append-only SHA-256 root chain, verification and CLI report
+│   ├── snapshot.rs         Panic-free snapshot I/O with Result API
+│   ├── maintenance.rs      Backup sealing/verification, state audit and repair
+│   ├── marshal.rs          Minimal-token task classification and psi topology selection
+│   ├── state_lock.rs       Cross-process shared/exclusive state lock
+│   ├── state_path.rs       Live/test state-directory isolation
+│   ├── real_blades.rs      Blade implementations
+│   ├── mcp.rs              MCP tool serialization
+│   └── process.rs          Safe process execution with timeout
+├── tests/
+│   ├── integration_main.rs     25 integration tests (invariants, Bio routing/actuators, integrity, resonance, profiles and Marshal CLI)
+│   ├── integration_lifecycle.rs 16 lifecycle tests (root, status, backup, restore, locks, retry, cancel, concurrency)
+│   └── integration_manifest.rs  4 manifest tests (routing, evidence failure, preflight and write permission)
+├── examples/
+│   ├── evidence-manifest.json   Read-only manifest with two independent arm contracts
+│   └── bio-homeostasis-manifest.json Evidence-bound macrophage, pruning and mitosis arms
+├── scripts/
+│   ├── verify-bio-system.ps1   33-target native functional smoke and artifact validation
+│   └── benchmark-bio-system.ps1 Paired direct/Octopus latency and concurrency benchmark
+├── bio-binaries/               Independent v0.3.0 Cargo crate and 33 native release executables
+├── docs/
+│   ├── CAPABILITY_MATRIX.md    Full blade inventory with status
+│   ├── BIO_BENCHMARK_METHODOLOGY.md Normative 33-target measurement and claim protocol
+│   ├── BIO_BENCHMARK_RESULTS_20260801.md Recorded paired latency and scaling evidence
+│   ├── PRODUCT_DESCRIPTION.md  Canonical product identity, safety boundary and operating model
+│   └── OCTOPUS_2_PRODUCTION_PLAN.md  Roadmap and verified state
+├── Cargo.toml
+├── README.md
+├── CHANGELOG.md
+└── .gitignore
+```
+
+## Quality Gates
+
+Every change must pass these, in order:
+
+```powershell
+cargo fmt --check                        # Formatting
+cargo clippy --locked --all-targets -- -D warnings  # Zero warnings
+cargo test --locked                      # All Octopus tests green (357 currently)
+cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 61 Bio tests
+cargo build --release --locked           # Release binary
+```
+
+Generated release binaries and Cargo target trees, including the bundled Bio crate's local `target/`, stay outside Git history and must be rebuilt from the committed sources.
+
+Then verify invariants:
+
+```powershell
+octopus-runtime list          # 225, 225 unique
+octopus-runtime capabilities  # 225, 225 unique
+octopus-runtime capabilities --profile windows-offline  # 164, no external/declared entries
+.\scripts\verify-bio-system.ps1  # 33/33 native functional paths plus artifact receipts
+.\scripts\benchmark-bio-system.ps1 -Warmup 3 -Samples 20  # paired latency benchmark
+octopus-runtime pipeline "summarize || code-analysis" "probe"
+# Must produce real root ID, exit 0
+```
+
+## Previous v2.8.1 baseline
+
+| Metric | Value |
+|--------|-------|
+| Tests | 333 (294 unit + 39 integration), 0 failed |
+| Capabilities | 192 unique registry entries: 137 `real`, 53 `unavailable`, 2 `unsupported` |
+| Clippy | clean, `-D warnings` |
+| SHA-256 | `0C8CD0E0896B9A6B32A17B124B3BCC62D68D6666980098AF49C65A1CFCC2CB89` |
+| Release state | local hardening build, not tagged |
+| Former install path | `C:\Users\mater\.agents\skills\octopus\bin\octopus-runtime.exe` |
+
+### Working-tree Bio-native candidate
+
+| Metric | Value |
+|--------|-------|
+| Octopus tests | 357 (312 unit + 45 integration), 0 failed |
+| Bio-Binaries tests | 61, 0 failed |
+| Clippy | clean, `-D warnings` |
+| Test hygiene | duplicate test attributes removed; every reported test is unique |
+| Capabilities | 225 unique: 168 `real`, 55 `unavailable`, 2 `unsupported` |
+| Windows/offline profile | 164 entries; 0 external integrations; 0 `declared` routes |
+| Native Bio subsystem | 33/33 release binaries built; 33/33 functional smoke; 4/4 generated artifacts |
+| Bio release integrity | 33 embedded SHA-256 pins; tampered executable refused before launch |
+| Paired Bio benchmark | 660/660 pairs; typical direct 28.187 ms, Octopus 51.966 ms, paired boundary cost 24.217 ms |
+| Parallel Bio scaling | 16.998 → 40.930 jobs/s at concurrency 1 → 8; 2.408x speedup |
+| Release SHA-256 | `C8F7C50CC87C5322B50E8635A95651448193EB5A6A48B3E95605FA10391CE9D5` |
+| Install state | Runtime plus all 33 pinned Bio executables installed under `C:\Users\mater\.agents\skills\octopus\bin` |
+
+Full version history in [CHANGELOG.md](./CHANGELOG.md).
+
+## Platform
+
+Windows 64-bit. macOS-only blades return `Unsupported` with a typed failure. Linux not tested.
+
+## License
+
+MIT — see [Cargo.toml](./Cargo.toml).

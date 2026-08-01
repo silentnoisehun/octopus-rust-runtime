@@ -1,13 +1,17 @@
 use crate::outcome::ExecutionOutcome;
+use crate::state_path::state_dir;
 use sha2::{Digest, Sha256};
-use std::env;
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 static SEQUENCE: AtomicU64 = AtomicU64::new(1);
+static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+const EVENT_LOCK_TIMEOUT: Duration = Duration::from_secs(5);
+const STALE_EVENT_LOCK_AGE: Duration = Duration::from_secs(30);
 
 #[derive(Debug)]
 pub enum SnapshotError {
@@ -27,6 +31,104 @@ impl From<std::io::Error> for SnapshotError {
         Self::Io(error)
     }
 }
+
+struct EventLock {
+    path: PathBuf,
+}
+
+impl Drop for EventLock {
+    fn drop(&mut self) {
+        for _ in 0..20 {
+            match fs::remove_file(&self.path) {
+                Ok(()) => return,
+                Err(error) if error.kind() == ErrorKind::NotFound => return,
+                Err(error) if error.kind() == ErrorKind::PermissionDenied => {
+                    thread::sleep(Duration::from_millis(2));
+                }
+                Err(_) => return,
+            }
+        }
+    }
+}
+
+fn acquire_event_lock(root: &Path) -> Result<EventLock, SnapshotError> {
+    fs::create_dir_all(root)?;
+    let path = root.join("events.lock");
+    let started = Instant::now();
+    loop {
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(mut file) => {
+                writeln!(file, "pid={} created={}", std::process::id(), now_millis())?;
+                file.sync_all()?;
+                return Ok(EventLock { path });
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    ErrorKind::AlreadyExists | ErrorKind::PermissionDenied
+                ) =>
+            {
+                let stale = fs::metadata(&path)
+                    .and_then(|metadata| metadata.modified())
+                    .and_then(|modified| modified.elapsed().map_err(std::io::Error::other))
+                    .map(|age| age >= STALE_EVENT_LOCK_AGE)
+                    .unwrap_or(false);
+                if stale {
+                    let _ = fs::remove_file(&path);
+                    continue;
+                }
+                if started.elapsed() >= EVENT_LOCK_TIMEOUT {
+                    return Err(std::io::Error::new(
+                        ErrorKind::TimedOut,
+                        "timed out waiting for events.log lock",
+                    )
+                    .into());
+                }
+                thread::sleep(Duration::from_millis(2));
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+}
+
+pub(crate) fn atomic_write(path: &Path, content: &str) -> Result<(), SnapshotError> {
+    let parent = path.parent().ok_or_else(|| {
+        std::io::Error::new(ErrorKind::InvalidInput, "snapshot path has no parent")
+    })?;
+    fs::create_dir_all(parent)?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("snapshot");
+    let temporary = parent.join(format!(
+        ".{file_name}.{}.{}.tmp",
+        std::process::id(),
+        TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    ));
+
+    let result = (|| -> Result<(), std::io::Error> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
+        file.write_all(content.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temporary, path)?;
+        Ok(())
+    })();
+
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result.map_err(SnapshotError::from)
+}
+
+pub(crate) fn replace_event_log(root: &Path, content: &str) -> Result<(), SnapshotError> {
+    let _lock = acquire_event_lock(root)?;
+    atomic_write(&root.join("events.log"), content)
+}
+
 pub struct ArmSnapshot {
     id: String,
     path: PathBuf,
@@ -59,7 +161,7 @@ impl ArmSnapshot {
             parent.unwrap_or("-"),
             digest(prompt)
         );
-        fs::write(&path, &content)?;
+        atomic_write(&path, &content)?;
         // Non-fatal event log write failure: log and continue
         if let Err(e) = append_event(&root, &id, "running", name) {
             // Event log failure is advisory, not critical for snapshot correctness
@@ -111,15 +213,15 @@ impl ArmSnapshot {
         code: Option<&str>,
         output: &str,
     ) -> Result<(), SnapshotError> {
-        let mut file = OpenOptions::new().append(true).open(&self.path)?;
-        writeln!(
-            file,
+        let mut content = fs::read_to_string(&self.path)?;
+        content.push_str(&format!(
             "status: {status}\ncode: {}\nupdated: {}\noutput-sha256: {}\noutput-bytes: {}\n",
             code.unwrap_or("-"),
             now_millis(),
             digest(output),
             output.len()
-        )?;
+        ));
+        atomic_write(&self.path, &content)?;
         if let Some(root) = self.path.parent().and_then(Path::parent) {
             let _ = append_event(root, &self.id, status, "-");
         }
@@ -140,18 +242,15 @@ impl Drop for ArmSnapshot {
     }
 }
 
-fn state_dir() -> PathBuf {
-    env::var_os("OCTOPUS_STATE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(r"D:\codex\.octopus-rust"))
-}
-
 fn append_event(root: &Path, id: &str, status: &str, name: &str) -> Result<(), SnapshotError> {
+    let _lock = acquire_event_lock(root)?;
+    let line = format!("{}\t{id}\t{status}\t{}\n", now_millis(), clean(name));
     let mut events = OpenOptions::new()
         .create(true)
         .append(true)
         .open(root.join("events.log"))?;
-    writeln!(events, "{}\t{id}\t{status}\t{}", now_millis(), clean(name))?;
+    events.write_all(line.as_bytes())?;
+    events.sync_data()?;
     Ok(())
 }
 
@@ -177,9 +276,79 @@ fn sanitize(value: &str) -> String {
             }
         })
         .collect();
-    value.trim_matches('-').chars().take(48).collect::<String>()
+    let value = value.trim_matches('-').chars().take(48).collect::<String>();
+    if value.is_empty() {
+        "arm".to_string()
+    } else {
+        value
+    }
 }
 
 fn clean(value: &str) -> String {
     value.replace(['\r', '\n', '\t'], " ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir(label: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "octopus-snapshot-{label}-{}-{}",
+            std::process::id(),
+            TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ))
+    }
+
+    #[test]
+    fn atomic_write_replaces_a_complete_snapshot() {
+        let dir = temp_dir("replace");
+        let path = dir.join("arm.snap");
+        atomic_write(&path, "status: running\n").unwrap();
+        atomic_write(&path, "status: completed\n").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "status: completed\n");
+        assert_eq!(
+            fs::read_dir(&dir).unwrap().filter_map(Result::ok).count(),
+            1
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn concurrent_event_records_remain_whole_lines() {
+        let dir = temp_dir("events");
+        fs::create_dir_all(&dir).unwrap();
+        let mut threads = Vec::new();
+        for worker in 0..8 {
+            let root = dir.clone();
+            threads.push(thread::spawn(move || {
+                for item in 0..25 {
+                    append_event(
+                        &root,
+                        &format!("arm-{worker}-{item}"),
+                        "completed",
+                        "diagnostics",
+                    )
+                    .unwrap();
+                }
+            }));
+        }
+        for handle in threads {
+            handle.join().unwrap();
+        }
+
+        let content = fs::read_to_string(dir.join("events.log")).unwrap();
+        let lines = content.lines().collect::<Vec<_>>();
+        assert_eq!(lines.len(), 200);
+        assert!(lines.iter().all(|line| {
+            let fields = line.split('\t').collect::<Vec<_>>();
+            fields.len() == 4
+                && fields[0].parse::<u128>().is_ok()
+                && fields[1].starts_with("arm-")
+                && fields[2] == "completed"
+                && fields[3] == "diagnostics"
+        }));
+        assert!(!dir.join("events.lock").exists());
+        let _ = fs::remove_dir_all(dir);
+    }
 }

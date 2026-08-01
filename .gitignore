@@ -1,4 +1,7 @@
 /target/
+/bio-binaries/target/
+/bio-binaries/NONE
+/lib.patch
 *.exe
 *.pdb
 *.rlib

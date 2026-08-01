@@ -1,5 +1,5 @@
 use crate::outcome::ExecutionOutcome;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -17,6 +17,7 @@ pub struct ProcessSpec {
     pub args: Vec<String>,
     pub cwd: Option<PathBuf>,
     pub env_allowlist: Option<HashSet<String>>,
+    pub env_overrides: HashMap<String, String>,
     pub timeout_ms: Option<u64>,
     pub max_output_bytes: Option<usize>,
     pub git_optional_locks: bool,
@@ -31,6 +32,7 @@ impl ProcessSpec {
             args: Vec::new(),
             cwd: None,
             env_allowlist: None,
+            env_overrides: HashMap::new(),
             timeout_ms: None,
             max_output_bytes: None,
             git_optional_locks: false,
@@ -77,6 +79,11 @@ impl ProcessSpec {
         self.env_allowlist = Some(keys.into_iter().map(Into::into).collect());
         self
     }
+
+    pub fn env(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.env_overrides.insert(key.into(), value.into());
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -118,7 +125,9 @@ pub fn run_process(spec: &ProcessSpec) -> Result<ProcessResult, ExecutionOutcome
         command.env("PATH", path);
     }
 
-    // Inherit system root and temp dirs
+    // Inherit system root, temp dirs and read-only platform/toolchain roots. Native
+    // Bio processes use these paths to discover installed MSVC components while
+    // the child still starts from an otherwise empty environment.
     for key in &[
         "SystemRoot",
         "TEMP",
@@ -127,6 +136,15 @@ pub fn run_process(spec: &ProcessSpec) -> Result<ProcessResult, ExecutionOutcome
         "HOME",
         "ComSpec",
         "PATHEXT",
+        "ProgramData",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "ProgramW6432",
+        "CommonProgramFiles",
+        "CommonProgramFiles(x86)",
+        "CommonProgramW6432",
+        "LOCALAPPDATA",
+        "APPDATA",
     ] {
         if let Ok(val) = env::var(key) {
             command.env(key, val);
@@ -139,6 +157,9 @@ pub fn run_process(spec: &ProcessSpec) -> Result<ProcessResult, ExecutionOutcome
                 command.env(key, val);
             }
         }
+    }
+    for (key, value) in &spec.env_overrides {
+        command.env(key, value);
     }
 
     command.stdin(Stdio::null());

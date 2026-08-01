@@ -62,11 +62,69 @@ impl fmt::Display for CapabilityStatus {
     }
 }
 
+/// Observable effect class. This deliberately does not reuse `status`: a
+/// capability can be callable (`real`) while still being advisory-only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CapabilityExecutionClass {
+    Advisory,
+    LocalOperation,
+    ExternalIntegration,
+    ControlPlane,
+}
+
+impl fmt::Display for CapabilityExecutionClass {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Advisory => "advisory",
+            Self::LocalOperation => "local-operation",
+            Self::ExternalIntegration => "external-integration",
+            Self::ControlPlane => "control-plane",
+        })
+    }
+}
+
+/// Evidence grade for the registered route. `Tested` means automated coverage;
+/// `Observed` additionally exercised a real local effect. Neither grade grants
+/// authorization or bypasses the status gate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum VerificationGrade {
+    Declared,
+    Tested,
+    Observed,
+}
+
+impl fmt::Display for VerificationGrade {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Declared => "declared",
+            Self::Tested => "tested",
+            Self::Observed => "observed",
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CapabilityProfile {
+    All,
+    WindowsOffline,
+}
+
+impl fmt::Display for CapabilityProfile {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::All => "all",
+            Self::WindowsOffline => "windows-offline",
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapabilityInfo {
     pub name: String,
     pub mode: CapabilityMode,
     pub status: CapabilityStatus,
+    pub execution_class: CapabilityExecutionClass,
+    pub verification: VerificationGrade,
     pub version: String,
     pub group: String,
     pub deprecated: bool,
@@ -80,160 +138,167 @@ fn classify(name: &str) -> (CapabilityMode, CapabilityStatus) {
     use CapabilityMode::*;
     use CapabilityStatus::*;
 
-    let mode = match name {
-        // Real local adapters (read-only)
-        "code-reader" | "diagnostics" | "git-nexus" | "github" | "github-manager" => LocalRead,
-        // Real local adapter (write)
-        "code-writer" => LocalWrite,
-        // Octopus control / surgery components
-        "pipeline-architect" | "rust-surgeon" | "omni-surgeon" | "file-surgeon" => Composite,
-        // Local CLI tools wrapped by the safe process runner
-        "video-frames" | "tmux" | "audio-diagnostics" | "sherpa-onnx-tts" | "tts-voice"
-        | "stt-ear" | "test-tui" | "nano-pdf" | "pptx" | "qr-scan" | "turborepo" | "weather" => {
-            LocalProcess
-        }
-        // Externally mutating operations
-        "openai-image-gen" | "openai-whisper" | "voice-call" => ExternalWrite,
-        // Offline pure-algorithm and meta/documentation blades
-        "summarize"
-        | "sag"
-        | "code-analysis"
-        | "polyglot"
-        | "circuit-breaker"
-        | "code-review"
-        | "geolocation-distance"
-        | "dna-extract"
-        | "dual-generate"
-        | "duplicate-detector"
-        | "code-quality"
-        | "data-master"
-        | "retry-policy"
-        | "graceful-shutdown"
-        | "immune-status"
-        | "bench-meter"
-        | "brainstorming"
-        | "prose"
-        | "writing-rules"
-        | "doc-scribe"
-        | "agent-development"
-        | "hook-development"
-        | "command-development"
-        | "plugin-structure"
-        | "testing-codegen"
-        | "brand-voice"
-        | "brand-writer"
-        | "planner"
-        | "memory-bank"
-        | "incubator"
-        | "mermaid-agent"
-        | "canvas"
-        | "canvas-design"
-        | "frontend-design"
-        | "ui-design-system"
-        | "ui-ux-pro"
-        | "theme-factory"
-        | "brand-guidelines"
-        | "document-agent"
-        | "memory-skills"
-        | "memory-skills-v2"
-        | "microscope-memory"
-        | "emoti-mem"
-        | "architect-mind"
-        | "senior-architect"
-        | "senior-prompt-engineer"
-        | "formatter"
-        | "stem-core"
-        | "omni-connector"
-        | "parser"
-        | "type-inference"
-        | "lint-rules"
-        | "crispr-hotfix"
-        | "crispr-hotfix-v2"
-        | "synaptic-pruning"
-        | "synaptic-pruning-v2"
-        | "viral-transduction"
-        | "hox-architecture"
-        | "ai-synapse"
-        | "hive-orchestrator"
-        | "maestro"
-        | "swarm"
-        | "colony-swarm"
-        | "quality-bun"
-        | "react-practices"
-        | "stem-cell-manager"
-        | "mitosis-agent"
-        | "peekaboo"
-        | "eightctl"
-        | "forge-blade"
-        | "omega-striker"
-        | "sigma"
-        | "model-usage"
-        | "claude-migration"
-        | "ast-refactor"
-        | "connectome"
-        | "connectome-rs"
-        | "connectome-py"
-        | "connectome-js"
-        | "safety-check"
-        | "safety-check-py"
-        | "safety-check-js"
-        | "polyglot-metrics"
-        | "polyglot-convert"
-        | "immune-antibody"
-        | "immune-log"
-        | "plugin-list"
-        | "plugin-install"
-        | "plugin-remove"
-        | "dreamer-loop"
-        | "auto-evolve"
-        | "adaptive-evolve"
-        | "self-evolve"
-        | "mitosis"
-        | "bio-mitosis"
-        | "metamorphic-trigger"
-        | "omnicoder"
-        | "agent-factory"
-        | "commander"
-        | "swarm-queen"
-        | "replicator"
-        | "cryo-snap"
-        | "dna-mutate"
-        | "dna-mutate-point"
-        | "dna-mutate-insert"
-        | "dna-mutate-delete"
-        | "dna-mutate-optimize"
-        | "dna-crossover"
-        | "dna-select"
-        | "dna-evolve"
-        | "dna-teach"
-        | "dna-hebbian"
-        | "dna-stats"
-        | "brain"
-        | "brain-compare"
-        | "dual-cache"
-        | "dual-learn"
-        | "dual-record"
-        | "dual-status"
-        | "dual-teach"
-        | "claude-logic"
-        | "claude-psi"
-        | "psi-logic"
-        | "psi-quantum"
-        | "psi"
-        | "hello-mate" => RealAlgorithm,
-        // Everything that talks to a remote service (or is platform-specific)
-        _ => ExternalRead,
-    };
-
-    let status = match mode {
-        LocalRead | LocalWrite | Composite | RealAlgorithm => Real,
-        LocalProcess | ExternalRead | ExternalWrite => Unavailable,
-    };
-
-    let status = if name == "apple-notes" || name == "bear-notes" {
-        Unsupported
+    let bio_external = crate::bio_system::contains(name);
+    let mode = if bio_external {
+        LocalProcess
     } else {
-        status
+        match name {
+            // Real local adapters (read-only)
+            "code-reader" | "diagnostics" | "git-nexus" => LocalRead,
+            // Real local adapter (write)
+            "code-writer" => LocalWrite,
+            // Octopus control / surgery components
+            "pipeline-architect" | "rust-surgeon" | "omni-surgeon" | "file-surgeon" => Composite,
+            // Local CLI tools wrapped by the safe process runner
+            "video-frames" | "tmux" | "audio-diagnostics" | "sherpa-onnx-tts" | "tts-voice"
+            | "stt-ear" | "test-tui" | "nano-pdf" | "pptx" | "qr-scan" | "turborepo"
+            | "weather" => LocalProcess,
+            // Real external adapters. Environment/auth readiness is checked at execution time.
+            "github" | "github-manager" => ExternalRead,
+            // Externally mutating operations
+            "openai-image-gen" | "openai-whisper" | "voice-call" => ExternalWrite,
+            // Offline pure-algorithm and meta/documentation blades
+            "summarize"
+            | "sag"
+            | "code-analysis"
+            | "polyglot"
+            | "circuit-breaker"
+            | "code-review"
+            | "geolocation-distance"
+            | "dna-extract"
+            | "dual-generate"
+            | "duplicate-detector"
+            | "code-quality"
+            | "data-master"
+            | "retry-policy"
+            | "graceful-shutdown"
+            | "macrophage"
+            | "immune-status"
+            | "bench-meter"
+            | "brainstorming"
+            | "prose"
+            | "writing-rules"
+            | "doc-scribe"
+            | "agent-development"
+            | "hook-development"
+            | "command-development"
+            | "plugin-structure"
+            | "testing-codegen"
+            | "brand-voice"
+            | "brand-writer"
+            | "planner"
+            | "memory-bank"
+            | "mermaid-agent"
+            | "canvas"
+            | "canvas-design"
+            | "frontend-design"
+            | "ui-design-system"
+            | "ui-ux-pro"
+            | "theme-factory"
+            | "brand-guidelines"
+            | "document-agent"
+            | "memory-skills"
+            | "memory-skills-v2"
+            | "microscope-memory"
+            | "emoti-mem"
+            | "architect-mind"
+            | "senior-architect"
+            | "senior-prompt-engineer"
+            | "formatter"
+            | "stem-core"
+            | "omni-connector"
+            | "parser"
+            | "type-inference"
+            | "lint-rules"
+            | "crispr-hotfix"
+            | "crispr-hotfix-v2"
+            | "synaptic-pruning"
+            | "synaptic-pruning-v2"
+            | "viral-transduction"
+            | "hox-architecture"
+            | "ai-synapse"
+            | "hive-orchestrator"
+            | "maestro"
+            | "swarm"
+            | "colony-swarm"
+            | "quality-bun"
+            | "react-practices"
+            | "stem-cell-manager"
+            | "mitosis-agent"
+            | "peekaboo"
+            | "forge-blade"
+            | "omega-striker"
+            | "sigma"
+            | "model-usage"
+            | "claude-migration"
+            | "ast-refactor"
+            | "connectome"
+            | "connectome-rs"
+            | "connectome-py"
+            | "connectome-js"
+            | "safety-check"
+            | "safety-check-py"
+            | "safety-check-js"
+            | "polyglot-metrics"
+            | "polyglot-convert"
+            | "immune-antibody"
+            | "immune-log"
+            | "plugin-list"
+            | "plugin-install"
+            | "plugin-remove"
+            | "dreamer-loop"
+            | "auto-evolve"
+            | "adaptive-evolve"
+            | "self-evolve"
+            | "mitosis"
+            | "bio-mitosis"
+            | "metamorphic-trigger"
+            | "omnicoder"
+            | "agent-factory"
+            | "commander"
+            | "swarm-queen"
+            | "replicator"
+            | "cryo-snap"
+            | "dna-mutate"
+            | "dna-mutate-point"
+            | "dna-mutate-insert"
+            | "dna-mutate-delete"
+            | "dna-mutate-optimize"
+            | "dna-crossover"
+            | "dna-select"
+            | "dna-evolve"
+            | "dna-teach"
+            | "dna-hebbian"
+            | "dna-stats"
+            | "brain"
+            | "brain-compare"
+            | "dual-cache"
+            | "dual-learn"
+            | "dual-record"
+            | "dual-status"
+            | "dual-teach"
+            | "claude-logic"
+            | "claude-psi"
+            | "psi-logic"
+            | "psi-quantum"
+            | "psi"
+            | "hello-mate" => RealAlgorithm,
+            // Everything that talks to a remote service (or is platform-specific)
+            _ => ExternalRead,
+        }
+    };
+
+    let status = if bio_external {
+        Real
+    } else if name == "apple-notes" || name == "bear-notes" {
+        Unsupported
+    } else if matches!(name, "github" | "github-manager") {
+        Real
+    } else {
+        match mode {
+            LocalRead | LocalWrite | Composite | RealAlgorithm => Real,
+            LocalProcess | ExternalRead | ExternalWrite => Unavailable,
+        }
     };
 
     (mode, status)
@@ -261,11 +326,62 @@ fn group_for_mode(mode: CapabilityMode) -> &'static str {
     }
 }
 
+fn execution_class_for(mode: CapabilityMode) -> CapabilityExecutionClass {
+    match mode {
+        CapabilityMode::RealAlgorithm => CapabilityExecutionClass::Advisory,
+        CapabilityMode::LocalRead | CapabilityMode::LocalWrite | CapabilityMode::LocalProcess => {
+            CapabilityExecutionClass::LocalOperation
+        }
+        CapabilityMode::ExternalRead | CapabilityMode::ExternalWrite => {
+            CapabilityExecutionClass::ExternalIntegration
+        }
+        CapabilityMode::Composite => CapabilityExecutionClass::ControlPlane,
+    }
+}
+
+fn verification_for(
+    name: &str,
+    mode: CapabilityMode,
+    status: CapabilityStatus,
+) -> VerificationGrade {
+    if status != CapabilityStatus::Real {
+        return VerificationGrade::Declared;
+    }
+    if matches!(
+        name,
+        "code-reader" | "code-writer" | "diagnostics" | "pipeline-architect" | "rust-surgeon"
+    ) {
+        return VerificationGrade::Observed;
+    }
+    if crate::bio_system::contains(name)
+        || mode == CapabilityMode::RealAlgorithm
+        || matches!(name, "git-nexus" | "github" | "github-manager")
+    {
+        return VerificationGrade::Tested;
+    }
+    VerificationGrade::Declared
+}
+
+impl CapabilityProfile {
+    pub fn allows(self, capability: &CapabilityInfo) -> bool {
+        match self {
+            Self::All => true,
+            Self::WindowsOffline => {
+                capability.status == CapabilityStatus::Real
+                    && capability.execution_class != CapabilityExecutionClass::ExternalIntegration
+                    && capability.verification >= VerificationGrade::Tested
+            }
+        }
+    }
+}
+
 pub fn catalog(names: &[&str]) -> Vec<CapabilityInfo> {
     names
         .iter()
         .map(|name| {
             let (mode, status) = classify(name);
+            let execution_class = execution_class_for(mode);
+            let verification = verification_for(name, mode, status);
             let contract = contract::get_contract(name);
             let version = contract
                 .as_ref()
@@ -279,6 +395,8 @@ pub fn catalog(names: &[&str]) -> Vec<CapabilityInfo> {
                 name: (*name).to_string(),
                 mode,
                 status,
+                execution_class,
+                verification,
                 version,
                 group,
                 deprecated: contract.as_ref().is_some_and(|c| c.deprecated),
@@ -289,15 +407,32 @@ pub fn catalog(names: &[&str]) -> Vec<CapabilityInfo> {
         .collect()
 }
 
-pub fn render(names: &[&str]) -> String {
+pub fn catalog_for_profile(names: &[&str], profile: CapabilityProfile) -> Vec<CapabilityInfo> {
     catalog(names)
+        .into_iter()
+        .filter(|capability| profile.allows(capability))
+        .collect()
+}
+
+pub fn render(names: &[&str]) -> String {
+    render_catalog(catalog(names))
+}
+
+pub fn render_for_profile(names: &[&str], profile: CapabilityProfile) -> String {
+    render_catalog(catalog_for_profile(names, profile))
+}
+
+fn render_catalog(capabilities: Vec<CapabilityInfo>) -> String {
+    capabilities
         .into_iter()
         .map(|capability| {
             let mut line = format!(
-                "{}\t{}\t{}\tv{}\t{}",
+                "{}\t{}\t{}\t{}\t{}\tv{}\t{}",
                 capability.name,
                 capability.mode,
                 capability.status,
+                capability.execution_class,
+                capability.verification,
                 capability.version,
                 capability.group
             );
@@ -343,6 +478,16 @@ pub fn execute(name: &str, prompt: &str) -> Option<ExecutionOutcome> {
             // Deprecated blades still execute but may produce a warning
         }
         CapabilityStatus::Real => {}
+    }
+
+    // Phase 2a: Truthful Rust-native biological homeostasis adapters.
+    // These deliberately bypass older advisory wrappers that can shadow the
+    // richer deterministic implementations.
+    if let Some(outcome) = crate::bio::execute(name, prompt) {
+        return Some(outcome);
+    }
+    if let Some(outcome) = crate::bio_system::execute(name, prompt, false) {
+        return Some(outcome);
     }
 
     // Phase 2: Route real local adapters directly — never let RealBlades override them
@@ -863,6 +1008,8 @@ fn github_manager_read(prompt: &str) -> ExecutionOutcome {
 mod tests {
     use super::*;
 
+    const EXPECTED_PUBLIC_CAPABILITIES: usize = 225;
+
     #[test]
     fn catalog_marks_real_local_and_composite_capabilities() {
         assert_eq!(mode("code-reader"), CapabilityMode::LocalRead);
@@ -871,14 +1018,72 @@ mod tests {
         assert_eq!(mode("rust-surgeon"), CapabilityMode::Composite);
         assert_eq!(mode("summarize"), CapabilityMode::RealAlgorithm);
         assert_eq!(mode("weather"), CapabilityMode::LocalProcess);
+        assert_eq!(mode("github"), CapabilityMode::ExternalRead);
         assert_eq!(mode("notion"), CapabilityMode::ExternalRead);
         assert_eq!(mode("openai-image-gen"), CapabilityMode::ExternalWrite);
     }
 
     #[test]
-    fn canonical_registry_has_191_capabilities_and_no_copied_native() {
+    fn catalog_reports_effect_and_evidence_axes() {
         let caps = crate::capabilities();
-        assert_eq!(caps.len(), 191, "expected exactly 191 capabilities");
+        let find = |name: &str| {
+            caps.iter()
+                .find(|capability| capability.name == name)
+                .unwrap()
+        };
+
+        assert_eq!(
+            find("code-reader").execution_class,
+            CapabilityExecutionClass::LocalOperation
+        );
+        assert_eq!(
+            find("code-reader").verification,
+            VerificationGrade::Observed
+        );
+        assert_eq!(
+            find("summarize").execution_class,
+            CapabilityExecutionClass::Advisory
+        );
+        assert_eq!(find("summarize").verification, VerificationGrade::Tested);
+        assert_eq!(
+            find("github").execution_class,
+            CapabilityExecutionClass::ExternalIntegration
+        );
+        assert_eq!(find("github").verification, VerificationGrade::Tested);
+    }
+
+    #[test]
+    fn windows_offline_profile_is_real_non_external_and_tested() {
+        let all = crate::list();
+        let caps = catalog_for_profile(&all, CapabilityProfile::WindowsOffline);
+        assert!(!caps.is_empty());
+        assert!(caps
+            .iter()
+            .all(|capability| CapabilityProfile::WindowsOffline.allows(capability)));
+        for included in ["code-reader", "summarize", "rust-surgeon"] {
+            assert!(caps.iter().any(|capability| capability.name == included));
+        }
+        for excluded in [
+            "github",
+            "github-manager",
+            "notion",
+            "apple-notes",
+            "bear-notes",
+            "omni-surgeon",
+            "file-surgeon",
+        ] {
+            assert!(!caps.iter().any(|capability| capability.name == excluded));
+        }
+    }
+
+    #[test]
+    fn canonical_registry_has_225_capabilities_and_no_copied_native() {
+        let caps = crate::capabilities();
+        assert_eq!(
+            caps.len(),
+            EXPECTED_PUBLIC_CAPABILITIES,
+            "expected the 192 Octopus capabilities plus 33 bundled Bio-Binaries targets"
+        );
         let copied = caps
             .iter()
             .filter(|c| {
@@ -913,9 +1118,9 @@ mod tests {
         let caps = crate::capabilities();
         let mode_count = caps.len();
         let status_count = caps.len();
-        assert_eq!(mode_count, 191);
-        assert_eq!(status_count, 191);
-        // Each individual mode bucket is non-negative and sums to 191.
+        assert_eq!(mode_count, EXPECTED_PUBLIC_CAPABILITIES);
+        assert_eq!(status_count, EXPECTED_PUBLIC_CAPABILITIES);
+        // Every capability belongs to exactly one mode bucket.
         let mut mode_total = 0;
         for mode in [
             CapabilityMode::RealAlgorithm,
@@ -928,7 +1133,10 @@ mod tests {
         ] {
             mode_total += caps.iter().filter(|c| c.mode == mode).count();
         }
-        assert_eq!(mode_total, 191, "mode buckets must sum to 191");
+        assert_eq!(
+            mode_total, EXPECTED_PUBLIC_CAPABILITIES,
+            "mode buckets must sum to the public registry size"
+        );
 
         let mut status_total = 0;
         for status in [
@@ -939,18 +1147,16 @@ mod tests {
         ] {
             status_total += caps.iter().filter(|c| c.status == status).count();
         }
-        assert_eq!(status_total, 191, "status buckets must sum to 191");
+        assert_eq!(
+            status_total, EXPECTED_PUBLIC_CAPABILITIES,
+            "status buckets must sum to the public registry size"
+        );
     }
 
     #[test]
     fn apple_notes_and_bear_notes_are_unsupported() {
         assert_eq!(status("apple-notes"), CapabilityStatus::Unsupported);
         assert_eq!(status("bear-notes"), CapabilityStatus::Unsupported);
-        let caps = crate::capabilities();
-        for name in ["apple-notes", "bear-notes"] {
-            let cap = caps.iter().find(|c| c.name == name).unwrap();
-            assert_eq!(cap.status, CapabilityStatus::Unsupported);
-        }
     }
 
     #[test]
@@ -959,7 +1165,22 @@ mod tests {
         // tool render from the exact same canonical registry.
         let cli = crate::render_capabilities();
         // MCP uses the same render function; verify consistency
-        assert_eq!(cli.lines().count(), 191);
+        assert_eq!(cli.lines().count(), EXPECTED_PUBLIC_CAPABILITIES);
+        assert!(cli.lines().all(|line| line.split('\t').count() >= 7));
+    }
+
+    #[test]
+    fn bundled_bio_binaries_are_real_tested_local_process_adapters() {
+        let caps = crate::capabilities();
+        for name in ["viral-infect", "hox-diff", "omega-master", "microscope-mem"] {
+            let capability = caps
+                .iter()
+                .find(|capability| capability.name == name)
+                .unwrap();
+            assert_eq!(capability.mode, CapabilityMode::LocalProcess);
+            assert_eq!(capability.status, CapabilityStatus::Real);
+            assert_eq!(capability.verification, VerificationGrade::Tested);
+        }
     }
 
     #[test]

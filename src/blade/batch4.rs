@@ -231,12 +231,6 @@ impl Batch4 {
         "stem_cell_differentiate".to_string()
     }
 
-    pub fn mitosis_agent(_prompt: &str) -> String {
-        let _parent = "parent_agent_001";
-        let _offspring = "mitosis_result";
-        format!("[mitosis-agent] Agent division executed. Clones: 2")
-    }
-
     pub fn blogwatcher(_prompt: &str) -> String {
         format!(
             "[bloguatcher] Feed monitored. Posts: 847. New: 34. Categories: 12. Last sync: 45s ago"

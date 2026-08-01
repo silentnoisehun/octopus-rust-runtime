@@ -1,20 +1,197 @@
 pub mod approval;
+pub mod arm_manifest;
+pub mod bio;
+mod bio_actuator;
+pub mod bio_system;
 #[allow(clippy::all)]
 mod blade;
 mod capability;
 mod composite;
 pub mod contract;
 pub mod external;
+mod maintenance;
+pub mod marshal;
 mod mcp;
 pub mod orchestration;
 mod outcome;
 mod process;
 pub mod real_blades;
+pub mod render;
+pub mod resonance;
 mod snapshot;
+mod state_lock;
+mod state_path;
 
-pub use capability::{CapabilityInfo, CapabilityMode, CapabilityStatus};
+#[cfg(feature = "sigma")]
+pub mod manus_blades;
+
+pub use capability::{
+    CapabilityExecutionClass, CapabilityInfo, CapabilityMode, CapabilityProfile, CapabilityStatus,
+    VerificationGrade,
+};
 pub use contract::CapabilityContract;
 pub use outcome::{ExecutionOutcome, ExecutionStatus};
+
+pub fn marshal_plan(task: &str) -> ExecutionOutcome {
+    marshal::plan_outcome(task)
+}
+
+pub fn marshal_dispatch(task: &str, allow_write: bool) -> ExecutionOutcome {
+    marshal::dispatch_outcome(task, allow_write)
+}
+
+pub fn resonance_status(verify: bool, tail: usize) -> ExecutionOutcome {
+    resonance::status_outcome(verify, tail)
+}
+
+fn run_control_action(
+    name: &str,
+    prompt: String,
+    action: impl FnOnce() -> ExecutionOutcome,
+) -> ExecutionOutcome {
+    let root = orchestration::create_root(&prompt);
+    if !orchestration::root_snapshot_is_durable(&root.id) {
+        return ExecutionOutcome::failed(
+            "control_audit_unavailable",
+            "refusing control action because the root audit snapshot is not durable",
+        );
+    }
+    let arm = orchestration::create_arm_restricted(&root.id, name, &prompt, None);
+    if !orchestration::arm_snapshot_is_durable(&arm.id) {
+        let outcome = ExecutionOutcome::failed(
+            "control_audit_unavailable",
+            "refusing control action because the arm audit snapshot is not durable",
+        );
+        orchestration::finish_root(&root.id, &outcome);
+        return outcome;
+    }
+    let outcome = action();
+    orchestration::finish_arm(&arm.id, &outcome);
+    orchestration::finish_root(&root.id, &outcome);
+    outcome
+}
+
+pub fn bio_macrophage_plan(pid: u32) -> ExecutionOutcome {
+    run_control_action("bio-macrophage-plan", format!("pid={pid}"), || {
+        bio_actuator::macrophage_plan(pid)
+    })
+}
+
+pub fn bio_macrophage_apply(pid: u32, confirm: &str, allow_kill: bool) -> ExecutionOutcome {
+    run_control_action(
+        "bio-macrophage-apply",
+        format!("pid={pid};confirm-sha256={}", sha256_text(confirm)),
+        || bio_actuator::macrophage_apply(pid, confirm, allow_kill),
+    )
+}
+
+pub fn bio_synaptic_plan(
+    executable: &std::path::Path,
+    config: &std::path::Path,
+) -> ExecutionOutcome {
+    run_control_action(
+        "bio-synaptic-plan",
+        format!(
+            "executable={};config={}",
+            executable.display(),
+            config.display()
+        ),
+        || bio_actuator::synaptic_plan(executable, config),
+    )
+}
+
+pub fn bio_synaptic_apply(
+    executable: &std::path::Path,
+    config: &std::path::Path,
+    confirm: &str,
+    allow_write: bool,
+) -> ExecutionOutcome {
+    run_control_action(
+        "bio-synaptic-apply",
+        format!(
+            "executable={};config={};confirm-sha256={}",
+            executable.display(),
+            config.display(),
+            sha256_text(confirm)
+        ),
+        || bio_actuator::synaptic_apply(executable, config, confirm, allow_write),
+    )
+}
+
+pub fn bio_crispr_plan(
+    target: &std::path::Path,
+    replacement: &std::path::Path,
+    health_args: &[String],
+) -> ExecutionOutcome {
+    run_control_action(
+        "bio-crispr-plan",
+        format!(
+            "target={};replacement={};health={}",
+            target.display(),
+            replacement.display(),
+            health_args.join(" ")
+        ),
+        || bio_actuator::crispr_plan(target, replacement, health_args),
+    )
+}
+
+pub fn bio_crispr_apply(
+    target: &std::path::Path,
+    replacement: &std::path::Path,
+    health_args: &[String],
+    confirm: &str,
+    allow_write: bool,
+) -> ExecutionOutcome {
+    run_control_action(
+        "bio-crispr-apply",
+        format!(
+            "target={};replacement={};health={};confirm-sha256={}",
+            target.display(),
+            replacement.display(),
+            health_args.join(" "),
+            sha256_text(confirm)
+        ),
+        || bio_actuator::crispr_apply(target, replacement, health_args, confirm, allow_write),
+    )
+}
+
+pub fn bio_system_status() -> ExecutionOutcome {
+    run_control_action(
+        "bio-system-status",
+        "bio-binaries-status".to_string(),
+        bio_system::status,
+    )
+}
+
+pub fn bio_external_run(name: &str, args: &str, allow_mutation: bool) -> ExecutionOutcome {
+    run_control_action(
+        "bio-external-run",
+        format!(
+            "name={name};allow-mutation={allow_mutation};args-sha256={}",
+            sha256_text(args)
+        ),
+        || bio_system::external::execute(name, args, allow_mutation),
+    )
+}
+
+fn sha256_text(value: &str) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(value.as_bytes()))
+}
+
+pub struct StateCommandGuard {
+    _inner: state_lock::StateLockGuard,
+}
+
+pub fn state_command_guard() -> Result<StateCommandGuard, String> {
+    state_lock::acquire_shared(&state_path::state_dir(), state_lock::configured_timeout())
+        .map(|guard| StateCommandGuard { _inner: guard })
+}
+
+pub fn state_exclusive_command_guard() -> Result<StateCommandGuard, String> {
+    state_lock::acquire_exclusive(&state_path::state_dir(), state_lock::configured_timeout())
+        .map(|guard| StateCommandGuard { _inner: guard })
+}
 
 pub fn run(blade_name: &str, prompt: &str) -> String {
     run_outcome(blade_name, prompt).output
@@ -27,7 +204,7 @@ pub fn run_outcome(blade_name: &str, prompt: &str) -> ExecutionOutcome {
     // Create orchestration root for top-level blade calls
     let root = orchestration::create_root(prompt);
     let root_id = root.id.clone();
-    let arm = orchestration::create_arm_restricted(&root_id, blade_name, prompt, Some(&root_id));
+    let arm = orchestration::create_arm_restricted(&root_id, blade_name, prompt, None);
     let arm_id = arm.id.clone();
 
     let outcome = execute_blade_under_root(&root_id, blade_name, prompt, Some(&root_id));
@@ -69,7 +246,7 @@ pub fn run_arm(spec: &str, prompt: &str) -> String {
 pub fn run_arm_outcome(spec: &str, prompt: &str) -> ExecutionOutcome {
     let root = orchestration::create_root(prompt);
     let root_id = root.id.clone();
-    let arm = orchestration::create_arm_restricted(&root_id, spec, prompt, Some(&root_id));
+    let arm = orchestration::create_arm_restricted(&root_id, spec, prompt, None);
     let arm_id = arm.id.clone();
     let outcome = execute_arm_under_root(&root_id, spec, prompt, Some(&root_id));
     orchestration::finish_arm(&arm_id, &outcome);
@@ -84,6 +261,16 @@ fn execute_arm_under_root(
     spec: &str,
     prompt: &str,
     parent_id: Option<&str>,
+) -> ExecutionOutcome {
+    execute_arm_under_root_gated(root_id, spec, prompt, parent_id, None)
+}
+
+fn execute_arm_under_root_gated(
+    root_id: &str,
+    spec: &str,
+    prompt: &str,
+    parent_id: Option<&str>,
+    manifest_arm: Option<&arm_manifest::ManifestArm>,
 ) -> ExecutionOutcome {
     let components: Vec<_> = spec
         .split('+')
@@ -140,6 +327,9 @@ fn execute_arm_under_root(
         }
         let rendered = render_arm(root_id, spec, &outputs);
         outcome = aggregate(rendered, outputs.iter().map(|(_, o)| o));
+        if let Some(arm) = manifest_arm {
+            outcome = arm_manifest::enforce_evidence(arm, outcome);
+        }
         snap.finish(&outcome);
     }
     outcome
@@ -174,9 +364,9 @@ pub fn run_pipeline_outcome(spec: &str, prompt: &str) -> ExecutionOutcome {
         let rid = root_id.clone();
         handles.push(std::thread::spawn(move || {
             // Create arm record linked to the pipeline root
-            let arm = orchestration::create_arm_restricted(&rid, &arm_spec, &prompt, Some(&rid));
+            let arm = orchestration::create_arm_restricted(&rid, &arm_spec, &prompt, None);
             let arm_id = arm.id.clone();
-            // Use rootless arm executor — does NOT create a new root
+            // Use rootless arm executor â€” does NOT create a new root
             let outcome = execute_arm_under_root(&rid, &arm_spec, &prompt, Some(&arm_id));
             orchestration::finish_arm(&arm_id, &outcome);
             (arm_spec, outcome)
@@ -199,10 +389,98 @@ pub fn run_pipeline_outcome(spec: &str, prompt: &str) -> ExecutionOutcome {
     pipeline_outcome
 }
 
+pub fn run_manifest_outcome(source: &str, allow_write: bool) -> ExecutionOutcome {
+    let manifest = match arm_manifest::parse_and_validate(source, allow_write) {
+        Ok(manifest) => manifest,
+        Err(error) => return ExecutionOutcome::failed(error.code, error.message),
+    };
+
+    let root = orchestration::create_root(&manifest.objective);
+    let root_id = root.id.clone();
+    let mut handles = Vec::new();
+
+    for arm in manifest.arms.clone() {
+        let rid = root_id.clone();
+        handles.push(std::thread::spawn(move || {
+            let record_name = format!("{}:{}", arm.id, arm.spec);
+            let record = orchestration::create_arm_restricted(&rid, &record_name, &arm.input, None);
+            let outcome = execute_arm_under_root_gated(
+                &rid,
+                &arm.spec,
+                &arm.input,
+                Some(&record.id),
+                Some(&arm),
+            );
+            orchestration::finish_arm(&record.id, &outcome);
+            (record_name, outcome)
+        }));
+    }
+
+    let mut results = Vec::new();
+    for handle in handles {
+        results.push(handle.join().unwrap_or_else(|_| {
+            (
+                "failed-manifest-arm".to_string(),
+                ExecutionOutcome::failed("arm_thread_panicked", "Manifest arm thread panicked"),
+            )
+        }));
+    }
+
+    let rendered = render_manifest(&root_id, &manifest.objective, &results);
+    let outcome = aggregate(rendered, results.iter().map(|(_, outcome)| outcome));
+    orchestration::finish_root(&root_id, &outcome);
+    outcome
+}
+
+const RUNTIME_ONLY_CAPABILITIES: &[&str] = &[
+    "1password",
+    "apple-notes",
+    "bear-notes",
+    "claude-migration",
+    "clawhub",
+    "discord",
+    "eightctl",
+    "forge-blade",
+    "github-manager",
+    "git-nexus",
+    "gog",
+    "goplaces",
+    "hello-mate",
+    "himalaya",
+    "incubator",
+    "lobster-scraper",
+    "mcporter",
+    "merge-pr",
+    "merge-pr-v1",
+    "macrophage",
+    "mitosis-agent",
+    "nano-pdf",
+    "notion",
+    "openai-whisper",
+    "pptx",
+    "sherpa-onnx-tts",
+    "stt-ear",
+    "tmux",
+    "tts-voice",
+    "turborepo",
+    "video-frames",
+    "voice-call",
+    "wacli",
+    "weather",
+    "pipeline-architect",
+];
+
 pub fn list() -> Vec<&'static str> {
     let mut blades = blade::list();
-    if !blades.contains(&"pipeline-architect") {
-        blades.push("pipeline-architect");
+    for capability in RUNTIME_ONLY_CAPABILITIES {
+        if !blades.contains(capability) {
+            blades.push(capability);
+        }
+    }
+    for capability in bio_system::public_names() {
+        if !blades.contains(&capability) {
+            blades.push(capability);
+        }
     }
     blades
 }
@@ -211,12 +489,118 @@ pub fn capabilities() -> Vec<CapabilityInfo> {
     capability::catalog(&list())
 }
 
+pub fn capabilities_for_profile(profile: CapabilityProfile) -> Vec<CapabilityInfo> {
+    capability::catalog_for_profile(&list(), profile)
+}
+
 pub fn render_capabilities() -> String {
     capability::render(&list())
 }
 
+pub fn render_capabilities_for_profile(profile: CapabilityProfile) -> String {
+    capability::render_for_profile(&list(), profile)
+}
+
 pub fn run_mcp() {
     mcp::run();
+}
+
+pub fn state_audit(stale_minutes: u64) -> ExecutionOutcome {
+    if stale_minutes == 0 {
+        return ExecutionOutcome::failed(
+            "invalid_stale_window",
+            "stale-minutes must be at least 1",
+        );
+    }
+    match maintenance::audit(std::time::Duration::from_secs(
+        stale_minutes.saturating_mul(60),
+    )) {
+        Ok(report) => ExecutionOutcome::completed(report.render()),
+        Err(error) => ExecutionOutcome::failed("state_audit_failed", error),
+    }
+}
+
+pub fn state_repair(stale_minutes: u64) -> ExecutionOutcome {
+    if stale_minutes == 0 {
+        return ExecutionOutcome::failed(
+            "invalid_stale_window",
+            "stale-minutes must be at least 1",
+        );
+    }
+    match maintenance::repair(std::time::Duration::from_secs(
+        stale_minutes.saturating_mul(60),
+    )) {
+        Ok(report) => ExecutionOutcome::completed(report.render()),
+        Err(error) => ExecutionOutcome::failed("state_repair_failed", error),
+    }
+}
+
+pub fn state_backup_create() -> ExecutionOutcome {
+    match maintenance::create_backup() {
+        Ok(path) => {
+            let Some(backup_id) = path.file_name().and_then(|value| value.to_str()) else {
+                return ExecutionOutcome::failed(
+                    "state_backup_failed",
+                    "created backup has no valid identifier",
+                );
+            };
+            match maintenance::verify_backup(backup_id) {
+                Ok(report) if report.sealed => ExecutionOutcome::completed(format!(
+                    "OCTOPUS STATE BACKUP CREATE\nbackup: {}\npath: {}\nsealed: true\nfiles: {}\nbytes: {}\nintegrity: verified",
+                    report.backup_id,
+                    path.display(),
+                    report.files,
+                    report.bytes,
+                )),
+                Ok(_) => ExecutionOutcome::failed(
+                    "state_backup_unsealed",
+                    "new backup was published without a sealed manifest",
+                ),
+                Err(error) => ExecutionOutcome::failed("state_backup_verify_failed", error),
+            }
+        }
+        Err(error) => ExecutionOutcome::failed("state_backup_failed", error),
+    }
+}
+
+pub fn state_backup_verify(backup_id: &str) -> ExecutionOutcome {
+    match maintenance::verify_backup(backup_id) {
+        Ok(report) => ExecutionOutcome::completed(report.render()),
+        Err(error) => ExecutionOutcome::failed("state_backup_verify_failed", error),
+    }
+}
+
+pub fn state_restore_plan(backup_id: &str) -> ExecutionOutcome {
+    match maintenance::plan_restore(backup_id) {
+        Ok(report) => ExecutionOutcome::completed(report.render()),
+        Err(error) => ExecutionOutcome::failed("state_restore_plan_failed", error),
+    }
+}
+
+pub fn state_restore_apply(backup_id: &str, confirmation: &str) -> ExecutionOutcome {
+    match maintenance::restore_backup(backup_id, confirmation) {
+        Ok(report) => {
+            orchestration::init_from_disk();
+            ExecutionOutcome::completed(report.render())
+        }
+        Err(error) => ExecutionOutcome::failed("state_restore_failed", error),
+    }
+}
+
+pub fn state_restore_recover() -> ExecutionOutcome {
+    match maintenance::recover_interrupted_restore() {
+        Ok(report) => {
+            if report != maintenance::RestoreRecoveryReport::None {
+                orchestration::init_from_disk();
+            }
+            ExecutionOutcome::completed(report.render())
+        }
+        Err(error) => ExecutionOutcome::failed("state_restore_recovery_failed", error),
+    }
+}
+
+pub fn state_restore_auto_recover() -> ExecutionOutcome {
+    state_restore_recover()
 }
 
 pub fn orch_init() {
@@ -227,33 +611,12 @@ pub fn orch_status(root_id: &str) -> ExecutionOutcome {
     match orchestration::get_root(root_id) {
         None => ExecutionOutcome::failed("root_not_found", format!("Root {root_id} not found")),
         Some(root) => {
-            let arms = orchestration::list_events(root_id);
-            let mut output = format!(
-                "Root: {}  Status: {}  Prompt: {}  Input: {}",
-                root.id,
-                root.status.as_str(),
-                &root.prompt_hash[..12],
-                &root.input_hash[..12]
-            );
-            if let Some(ref hash) = root.output_hash {
-                output.push_str(&format!("  Output: {}", &hash[..12]));
-            }
-            if let Some(finished) = root.finished_at {
-                output.push_str(&format!("  Finished: {finished}"));
-            }
-            if let Some(dur) = root.duration_ms {
-                output.push_str(&format!("  Duration: {dur}ms"));
-            }
-            output.push_str(&format!("\nEvents: {}", arms.len()));
-            for arm in &arms {
-                output.push_str(&format!(
-                    "\n  {} [{}] {} ({})",
-                    arm.arm_id,
-                    arm.event_type,
-                    &arm.details[..12.min(arm.details.len())],
-                    arm.timestamp
-                ));
-            }
+            let arm_records: Vec<orchestration::ArmRecord> = root
+                .children
+                .iter()
+                .filter_map(|child_id| orchestration::get_arm(child_id))
+                .collect();
+            let output = render::render_status_octopus(&root, &arm_records);
             ExecutionOutcome::completed(output)
         }
     }
@@ -480,7 +843,7 @@ fn execute_component(spec: &str, prompt: &str) -> ExecutionOutcome {
 }
 
 fn registered_blade(name: &str) -> bool {
-    blade::list().contains(&name)
+    list().contains(&name)
         || matches!(
             name,
             "02_Memory_Skills"
@@ -534,6 +897,29 @@ fn render_pipeline(root_id: &str, results: &[(String, ExecutionOutcome)]) -> Str
         ));
     }
     rendered.push_str(&format!("\n═══ Octopus Root: {root_id} ═══"));
+    rendered
+}
+
+fn render_manifest(
+    root_id: &str,
+    objective: &str,
+    results: &[(String, ExecutionOutcome)],
+) -> String {
+    let mut rendered = format!(
+        "EVIDENCE-BOUND OCTOPUS MANIFEST\nschema: {}\nroot: {root_id}\nobjective: {objective}\narms: {}\n",
+        arm_manifest::SCHEMA,
+        results.len()
+    );
+    for (index, (arm, outcome)) in results.iter().enumerate() {
+        rendered.push_str(&format!(
+            "\n-- Arm {}: {} [{}] --\n{}\n",
+            index + 1,
+            arm,
+            outcome.status.as_str(),
+            outcome.output
+        ));
+    }
+    rendered.push_str(&format!("\nMANIFEST ROOT: {root_id}"));
     rendered
 }
 

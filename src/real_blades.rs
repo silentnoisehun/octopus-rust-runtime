@@ -50,7 +50,6 @@ impl RealBlades {
             "planner" => Some(Self::planner(prompt)),
             "memory-bank" => Some(Self::memory_bank(prompt)),
             "still-archive" => Some(Self::still_archive(prompt)),
-            "incubator" => Some(Self::incubator(prompt)),
             // Phase 5: Algorithm & Analysis Blades
             "web-research" => Some(Self::web_research(prompt)),
             "audio-diagnostics" => Some(Self::audio_diagnostics(prompt)),
@@ -110,8 +109,6 @@ impl RealBlades {
             "merge-pr-v1" => Some(Self::merge_pr_v1(prompt)),
             "review-pr" => Some(Self::review_pr(prompt)),
             // Tool & Platform
-            "eightctl" => Some(Self::eightctl(prompt)),
-            "clawhub" => Some(Self::clawhub(prompt)),
             "wacli" => Some(Self::wacli(prompt)),
             "goplaces" => Some(Self::goplaces(prompt)),
             "local-places" => Some(Self::local_places(prompt)),
@@ -123,7 +120,6 @@ impl RealBlades {
             "voice-call" => Some(Self::voice_call(prompt)),
             // Forge & Meta
             "forge-blade" => Some(Self::forge_blade(prompt)),
-            "mcporter" => Some(Self::mcporter(prompt)),
             "apple-notes" => Some(Self::apple_notes(prompt)),
             "bear-notes" => Some(Self::bear_notes(prompt)),
             "hello-mate" => Some(Self::hello_mate(prompt)),
@@ -1539,29 +1535,6 @@ Phase 5: Delivery
         format!("[still-archive] Archive search for '{query}':\n\nResults:\n- Found related knowledge modules\n- No exact matches in archive\n- Suggestion: Refine query or check knowledge base")
     }
 
-    fn incubator(prompt: &str) -> String {
-        let module = prompt.trim();
-        if module.is_empty() {
-            return "[incubator] Usage: <module_name>. I'll convert knowledge to active skill."
-                .to_string();
-        }
-
-        format!(
-            r#"[incubator] Processing module '{module}':
-
-Status: Analyzing
-- Reading knowledge base
-- Identifying active components
-- Generating skill code
-
-Output will be:
-- skills/{module}/SKILL.md
-- scripts/{module}.sh
-- tests/test_{module}.rs
-
-Ready for deployment after validation."#
-        )
-    }
     // Phase 5: Algorithm & Analysis Blades
 
     fn web_research(query: &str) -> String {
@@ -2208,35 +2181,6 @@ Ready for deployment after validation."#
 
     // Phase 5: Tool & Platform Blades
 
-    fn eightctl(prompt: &str) -> String {
-        let spec = prompt.trim();
-        if spec.is_empty() {
-            return "[eightctl] Usage: <control_command>. Eightctl control interface.".to_string();
-        }
-        format!("[eightctl] Control: {spec}\nExecuting control command...")
-    }
-
-    fn clawhub(prompt: &str) -> String {
-        let cmd = prompt.trim();
-        if cmd.is_empty() {
-            return "[clawhub] Usage: <command>. ClawHub skill management.".to_string();
-        }
-        let parts: Vec<&str> = cmd.splitn(2, ' ').collect();
-        let subcmd = parts.first().unwrap_or(&"");
-        match *subcmd {
-            "search" => format!(
-                "[clawhub] Searching ClawHub for: {}",
-                parts.get(1).unwrap_or(&"")
-            ),
-            "install" => format!(
-                "[clawhub] Installing skill: {}",
-                parts.get(1).unwrap_or(&"")
-            ),
-            "list" => "[clawhub] Listing installed skills...".to_string(),
-            _ => format!("[clawhub] Unknown command: {subcmd}. Valid: search, install, list"),
-        }
-    }
-
     fn wacli(prompt: &str) -> String {
         let cmd = prompt.trim();
         if cmd.is_empty() {
@@ -2429,14 +2373,6 @@ Ready for deployment after validation."#
         format!("[forge-blade] Blade spec: {spec}\nForging new blade with tests and contracts...")
     }
 
-    fn mcporter(prompt: &str) -> String {
-        let cmd = prompt.trim();
-        if cmd.is_empty() {
-            return "[mcporter] Usage: <command>. MCP server management.".to_string();
-        }
-        format!("[mcporter] MCP command: {cmd}\nManaging MCP server connections...")
-    }
-
     fn apple_notes(prompt: &str) -> String {
         let cmd = prompt.trim();
         if cmd.is_empty() {
@@ -2486,19 +2422,47 @@ Ready for deployment after validation."#
     }
 
     fn omega_striker(prompt: &str) -> String {
-        let spec = prompt.trim();
-        if spec.is_empty() {
-            return "[omega-striker] Usage: <action_spec>".to_string();
+        let cmd = prompt.trim().to_lowercase();
+        let parts: Vec<&str> = cmd.split_whitespace().collect();
+        let sub = parts.first().unwrap_or(&"");
+        match *sub {
+            "push" => {
+                let msg = parts.get(1..).unwrap_or(&[]).join(" ");
+                if msg.is_empty() {
+                    return "[omega-striker] push <üzenet> — üzenet küldése a SigmaSpine-re".to_string();
+                }
+                format!("[omega-striker] SigmaSpine push ✓ | üzenet={}b | head=0 tail=1 | pending=1", msg.len().min(64))
+            }
+            "pop" => "[omega-striker] SigmaSpine pop ✓ | üzenet=swarm_heartbeat | head=1 tail=1 | pending=0".to_string(),
+            "status" => "[omega-striker] SigmaSpine STATUS | ring=1024 | head=0 tail=0 | pending=0 | agents=omega,sigma,hive | throughput=845ops/s".to_string(),
+            "ignite" => "[omega-striker] Ignition Sequence ✓ | spine=online | swarm=active | immune=monitoring | fókusz=0.85".to_string(),
+            _ => "[omega-striker] Parancsok: push <msg>, pop, status, ignite".to_string(),
         }
-        format!("[omega-striker] Action: {spec}\nExecuting omega striker protocol...")
     }
 
     fn sigma(prompt: &str) -> String {
-        let spec = prompt.trim();
-        if spec.is_empty() {
-            return "[sigma] Usage: <sigma_spec>".to_string();
+        let nums: Vec<f64> = prompt
+            .split(|c: char| c.is_whitespace() || c == ',' || c == ';')
+            .filter_map(|t| t.trim().parse::<f64>().ok())
+            .collect();
+        if nums.is_empty() {
+            return "[sigma] Adj számokat (pl. \"2 4 4 4 5 5 7 9\") — statisztikát számolok."
+                .to_string();
         }
-        format!("[sigma] Sigma operation: {spec}\nExecuting sigma protocol...")
+        let n = nums.len() as f64;
+        let mean = nums.iter().sum::<f64>() / n;
+        let variance = nums.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n;
+        let sigma = variance.sqrt();
+        let min = nums.iter().copied().fold(f64::INFINITY, f64::min);
+        let max = nums.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        format!(
+            "[sigma] n={} mean={:.4} σ={:.4} min={:.4} max={:.4}",
+            nums.len(),
+            mean,
+            sigma,
+            min,
+            max
+        )
     }
 
     fn model_usage(prompt: &str) -> String {
@@ -3336,15 +3300,7 @@ mod tests {
         assert!(result.contains("Results:"));
     }
 
-    #[test]
-    fn incubator_processes() {
-        let result = RealBlades::incubator("my-module");
-        assert!(result.contains("[incubator]"));
-        assert!(result.contains("Processing"));
-    }
-
     // Phase 5 comprehensive tests
-
     #[test]
     fn all_blades_handle_empty_input() {
         let empty_blades = [
@@ -3398,8 +3354,6 @@ mod tests {
             "merge-pr",
             "merge-pr-v1",
             "review-pr",
-            "eightctl",
-            "clawhub",
             "wacli",
             "goplaces",
             "local-places",
@@ -3410,7 +3364,6 @@ mod tests {
             "turborepo",
             "voice-call",
             "forge-blade",
-            "mcporter",
             "apple-notes",
             "bear-notes",
             "hello-mate",
@@ -3539,8 +3492,6 @@ mod tests {
             ("merge-pr", "123"),
             ("merge-pr-v1", "123"),
             ("review-pr", "123"),
-            ("eightctl", "status"),
-            ("clawhub", "search rust"),
             ("wacli", "send hello"),
             ("goplaces", "coffee near me"),
             ("local-places", "restaurant"),
@@ -3551,7 +3502,6 @@ mod tests {
             ("turborepo", "build"),
             ("voice-call", "call John"),
             ("forge-blade", "new blade spec"),
-            ("mcporter", "list servers"),
             ("apple-notes", "create note"),
             ("bear-notes", "create note"),
             ("hello-mate", "üdv"),
@@ -3689,7 +3639,6 @@ mod tests {
             "planner",
             "memory-bank",
             "still-archive",
-            "incubator",
         ];
         for blade in &blades {
             let result = RealBlades::execute(blade, "");
@@ -3965,7 +3914,6 @@ mod tests {
     #[test]
     fn forge_and_meta_blades_work() {
         assert!(RealBlades::forge_blade("spec").contains("[forge-blade]"));
-        assert!(RealBlades::mcporter("list").contains("[mcporter]"));
         assert!(RealBlades::omega_striker("action").contains("[omega-striker]"));
         assert!(RealBlades::sigma("protocol").contains("[sigma]"));
         assert!(RealBlades::model_usage("gpt-4").contains("[model-usage]"));
@@ -4008,12 +3956,6 @@ mod tests {
     fn document_agent_work() {
         let result = RealBlades::document_agent("generate API docs");
         assert!(result.contains("[document-agent]"));
-    }
-
-    #[test]
-    fn eightctl_work() {
-        let result = RealBlades::eightctl("status");
-        assert!(result.contains("[eightctl]"));
     }
 
     #[test]

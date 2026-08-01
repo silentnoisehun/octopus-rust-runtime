@@ -74,6 +74,44 @@ impl CapabilityContract {
             return Ok(());
         }
 
+        // code-writer uses a structured stdin contract:
+        // path|expected_sha256_or_NEW|content. Validate each field against its
+        // own slice so multiline file content is never mistaken for a path.
+        if self.input.len() == 3
+            && self.input[0].field == "path"
+            && self.input[1].field == "expected_hash"
+            && self.input[2].field == "content"
+        {
+            let mut parts = prompt.splitn(3, '|');
+            let path = parts.next().unwrap_or_default().trim();
+            let expected_hash = parts.next().unwrap_or_default().trim();
+            let content = parts.next().ok_or_else(|| {
+                "Missing required field 'content': File content to write".to_string()
+            })?;
+
+            if path.is_empty() {
+                return Err("Missing required field 'path': Target file path".to_string());
+            }
+            if path.contains(['\r', '\n']) {
+                return Err("Field 'path' cannot contain newlines".to_string());
+            }
+            let valid_hash = expected_hash.eq_ignore_ascii_case("NEW")
+                || (expected_hash.len() == 64
+                    && expected_hash
+                        .chars()
+                        .all(|character| character.is_ascii_hexdigit()));
+            if !valid_hash {
+                return Err(
+                    "Field 'expected_hash' must be a 64-character SHA256 hash or 'NEW'".to_string(),
+                );
+            }
+
+            // An empty content slice is valid and intentionally creates an
+            // empty file; presence is guaranteed by splitn above.
+            let _ = content;
+            return Ok(());
+        }
+
         let required_fields: Vec<_> = self.input.iter().filter(|c| c.required).collect();
         if required_fields.is_empty() {
             return Ok(());
@@ -541,6 +579,22 @@ pub fn get_contract(name: &str) -> Option<CapabilityContract> {
             deprecated: false,
             deprecation_message: None,
         }),
+        "macrophage" => Some(CapabilityContract {
+            version: "2.8",
+            group: "algorithm",
+            input: vec![InputContract {
+                field: "evidence",
+                input_type: InputType::Text,
+                required: true,
+                description: "Incident text or observed system evidence",
+            }],
+            output: OutputContract {
+                output_type: OutputType::Text,
+                description: "Scoped signature scan and advisory response",
+            },
+            deprecated: false,
+            deprecation_message: None,
+        }),
         "immune-status" => Some(CapabilityContract {
             version: "2.0",
             group: "algorithm",
@@ -932,22 +986,6 @@ pub fn get_contract(name: &str) -> Option<CapabilityContract> {
             output: OutputContract {
                 output_type: OutputType::Text,
                 description: "Archive search results",
-            },
-            deprecated: false,
-            deprecation_message: None,
-        }),
-        "incubator" => Some(CapabilityContract {
-            version: "2.3",
-            group: "meta",
-            input: vec![InputContract {
-                field: "module",
-                input_type: InputType::Text,
-                required: true,
-                description: "Module name",
-            }],
-            output: OutputContract {
-                output_type: OutputType::Text,
-                description: "Incubation status",
             },
             deprecated: false,
             deprecation_message: None,
@@ -1753,38 +1791,6 @@ pub fn get_contract(name: &str) -> Option<CapabilityContract> {
             deprecated: false,
             deprecation_message: None,
         }),
-        "eightctl" => Some(CapabilityContract {
-            version: "2.4",
-            group: "meta",
-            input: vec![InputContract {
-                field: "command",
-                input_type: InputType::Command,
-                required: true,
-                description: "Control command",
-            }],
-            output: OutputContract {
-                output_type: OutputType::Text,
-                description: "Control result",
-            },
-            deprecated: false,
-            deprecation_message: None,
-        }),
-        "clawhub" => Some(CapabilityContract {
-            version: "2.4",
-            group: "meta",
-            input: vec![InputContract {
-                field: "command",
-                input_type: InputType::Command,
-                required: true,
-                description: "search|install|list",
-            }],
-            output: OutputContract {
-                output_type: OutputType::Text,
-                description: "ClawHub result",
-            },
-            deprecated: false,
-            deprecation_message: None,
-        }),
         "wacli" => Some(CapabilityContract {
             version: "2.4",
             group: "external",
@@ -1941,22 +1947,6 @@ pub fn get_contract(name: &str) -> Option<CapabilityContract> {
             output: OutputContract {
                 output_type: OutputType::Text,
                 description: "Forge result",
-            },
-            deprecated: false,
-            deprecation_message: None,
-        }),
-        "mcporter" => Some(CapabilityContract {
-            version: "2.4",
-            group: "meta",
-            input: vec![InputContract {
-                field: "command",
-                input_type: InputType::Command,
-                required: true,
-                description: "MCP server command",
-            }],
-            output: OutputContract {
-                output_type: OutputType::Text,
-                description: "MCP result",
             },
             deprecated: false,
             deprecation_message: None,
@@ -3255,6 +3245,13 @@ mod tests {
         assert!(contract
             .validate_input(&format!("path|{}|content", "a".repeat(64)))
             .is_ok());
+        assert!(contract
+            .validate_input("path|NEW|first line\nsecond line\n")
+            .is_ok());
+        assert!(contract.validate_input("path|NEW|").is_ok());
+        assert!(contract
+            .validate_input(&format!("path|{}|content", "z".repeat(64)))
+            .is_err());
     }
 
     #[test]

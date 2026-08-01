@@ -1,26 +1,66 @@
-# Octopus Capability Matrix v2.5
+# Octopus Capability Matrix - v2.8 working-tree candidate
 
-Total capabilities: 191 (190 blade names + pipeline-architect composite)
+Total public capabilities: 225 (the existing 192-entry Octopus surface plus 33 separately bundled Bio-Binaries process targets)
 
-Status key:
+Canonical runtime axes:
+
+- **status:** `real`, `unavailable`, `unsupported`, or `deprecated`;
+- **execution class:** `advisory`, `local-operation`, `external-integration`, or `control-plane`;
+- **verification grade:** `declared`, `tested`, or `observed`.
+
+`real` means a route exists. It does not by itself claim an external side effect. `windows-offline` requires `real`, rejects external integrations, and requires at least `tested`.
+
+## Current measured candidate
+
+- Registry: 225 unique entries
+- Status: 168 `real`, 55 `unavailable`, 2 `unsupported`
+- Windows/offline profile: 164 entries, no external integration, no `declared` route
+- Tests: 357 Octopus tests plus 38 Bio-Binaries tests, 0 failed
+- Native functional smoke: 33/33 targets plus 4/4 generated artifacts
+- Paired latency benchmark: 660/660 direct/Octopus pairs; typical paired boundary cost 24.217 ms
+- Parallel scaling: 48/48 jobs; 16.998 to 40.930 jobs/s from concurrency 1 to 8 (2.408x)
+- Integrity: 33/33 release executables SHA-256 pinned and checked before process launch
+- Clippy: clean with `-D warnings`
+- Installed Octopus release SHA-256: `CBE3DD06BFB4C0597B8822188F4CABD87132D3B0101224D44ADA68EF117D4A49`
+
+## Bundled native Bio subsystem
+
+These capabilities remain executables in the independent `bio-binaries` Cargo crate. Octopus supplies policy, exact argument forwarding, time/output limits, private runtime state, audit snapshots and executable integrity validation.
+
+| Effect | Count | Targets |
+|---|---:|---|
+| read | 12 | hox-diff, eqm-pulse, aether-excite, aether-fabric, brain-synapse, brain-connectome, iron-resonate, path-resonance, magneto-geo, mycelium-spread, omega-point, wave-cryo-rx |
+| write | 13 | viral-infect, plasmid-inject, telepathy-sync, telepathy-entangle, eqm-methy, nexus-logic, wave-encoder, wave-sculptor, grid-warp, magneto-acoustic, wave-field, vagus-nerve, microscope-mem |
+| control | 8 | plasmid-dream, borg-cube, collective-sync, homeostasis, omega-master, ribosome-synth, wave-cryo-tx, mutation-sentinel |
+
+Bio v0.3.0 qualifies `ribosome-synth generate/replicate`, Wave-Cryo encode/decode/self-test, and `wave-field events` with real artifact or persistence tests. `microscope-mem` remains a compatibility-only wrapper and the benchmarked `collective-sync` case remains a negative/unreachable-endpoint path; neither is represented as a completed persistent-memory or successful-consensus implementation.
+
+Legacy v2.5 row status key (non-canonical):
 - **real** — adapter performs a real action, verified by test
 - **unavailable** — adapter is implemented, probe returns typed unavailable/auth_required
 - **unsupported** — capability does not apply to this environment
 - **deprecated** — retained for backward compatibility, will be removed
 
-## Status Summary (Verified v2.5 Release)
+## Legacy v2.5 status summary (non-canonical)
 
 - **real**: 9 (code-reader, code-writer, diagnostics, git-nexus, github, github-manager, pipeline-architect, rust-surgeon, summarize, sag)
 - **unavailable**: All LocalProcess and ExternalRead/ExternalWrite blades (no CLI tools or credentials)
 - **unsupported**: apple-notes, bear-notes (macOS only)
 
-## Verified Release State
+## Legacy v2.5 verification state
 
 - Tests: 272 (253 unit + 19 integration)
 - Clippy: clean (strict -D warnings)
 - Build: clean
 - All unavailable/unsupported blades return typed failures, not Completed-wrapped strings
 - Snapshots: panic-free, Result-based API
+
+## Legacy detailed contract inventory
+
+The rows below retain historical per-blade contract fields and status spelling. They are not the current routing source of truth. Use `octopus-runtime capabilities` or `capabilities --profile windows-offline` for canonical classification.
+
+| # | Name | Effect | Adapter | Legacy status | Input | Side effect | Tool | Credential | Timeout ms | Limit | Typed failures | Tested | Owner |
+|---:|---|---|---|---|---|---|---|---|---:|---|---|---|---|
 | 2 | code-writer | local-write | adapter | real | path\|expected_sha256_or_NEW\|content | file write/backup | none | none | 10000 | 1 MiB | invalid_write_contract, stale_write, new_file_requires_new, file_too_large, file_read_failed, path_denied, temporary_create_failed, temporary_write_failed, backup_failed, write_commit_failed | yes | capability.rs |
 | 3 | summarize | pure-algorithm | real-algorithm | real-algorithm | text to summarize | none | none | none | 10000 | 1 MiB | empty_blade_output, blade_panicked | yes (batch) | batch1.rs |
 | 4 | web-research | external-read | real-algorithm | unavailable | query text | network | curl/wget | none | 15000 | 1 MiB | blade_unavailable, blade_panicked | no | batch1.rs |
@@ -211,11 +251,13 @@ Status key:
 | 189 | dual-status | pure-algorithm | real-algorithm | real-algorithm | spec | none | none | none | 5000 | 1 MiB | empty_blade_output, blade_panicked | yes (batch) | batch12.rs |
 | 190 | dual-teach | pure-algorithm | real-algorithm | real-algorithm | spec | none | none | none | 5000 | 1 MiB | empty_blade_output, blade_panicked | yes (batch) | batch12.rs |
 | 191 | pipeline-architect | composite | adapter | real | rust_file\|boundary\|replacement | file write (transactional) | none | none | 10000 | 1 MiB | architect_refused, surgeon_refused | yes | composite.rs |
+| 192 | macrophage | pure-algorithm | advisory | real | incident evidence text | none (advisory only) | none | none | 5000 | 1 MiB | bio_input_missing | yes | bio.rs |
 
 ## Status Summary
 
 - **real**: 9 (code-reader, code-writer, diagnostics, git-nexus, rust-surgeon/pipeline-architect, summarize, sag, github, github-manager)
-- **real-algorithm**: 191 blades with real deterministic implementations in `real_blades.rs` (all tested)
+- **canonical measured status**: 168 `real` routes, including the dedicated `bio.rs` homeostasis adapters and 33 tested native Bio process targets
+- **Bio actuator control plane**: `bio macrophage|synaptic|crispr plan|apply` is intentionally outside the 225-capability registry; applies require confirmation plus explicit effect permission
 - **unavailable**: 24 (external services requiring credentials or CLI tools — github now real with auth probe)
 - **unsupported**: 2 (apple-notes, bear-notes — macOS only)
 

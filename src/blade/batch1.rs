@@ -233,22 +233,6 @@ impl Batch1 {
         )
     }
 
-    pub fn openai_whisper(_prompt: &str) -> String {
-        format!("[openai-whisper] Transcribed audio. Confidence: 96%. Language: en. Duration: 45s")
-    }
-
-    pub fn sherpa_onnx_tts(_prompt: &str) -> String {
-        format!("[sherpa-onnx-tts] Speech generated. Voice: default. Duration: 3.2s. Format: mp3")
-    }
-
-    pub fn tts_voice(_prompt: &str) -> String {
-        format!("[tts-voice] Voice synthesized. Rate: 1.0x. Pitch: 1.0. Speaker: neural-001")
-    }
-
-    pub fn stt_ear(_prompt: &str) -> String {
-        format!("[stt-ear] Speech recognized. Confidence: 94%. Words: 15. Language: en")
-    }
-
     pub fn mermaid_agent(_prompt: &str) -> String {
         format!(
             "[mermaid_agent] Diagram generated. Type: flowchart. Nodes: 12. Edges: 15. Format: SVG"
@@ -262,29 +246,5 @@ impl Batch1 {
             "[github] API call: '{}'. Status: 200. Rate limit: 4999/5000. Response: 2.3ms",
             prompt
         )
-    }
-
-    pub fn github_manager(_prompt: &str) -> String {
-        format!("[github-manager] Repo operations. PRs: 12 open, 45 merged. Issues: 8 active")
-    }
-
-    pub fn git_nexus(_prompt: &str) -> String {
-        format!("[git-nexus] Git command executed. Commits: 1250. Branches: 18. Status: synced")
-    }
-
-    pub fn notion(_prompt: &str) -> String {
-        format!("[notion] Database synced. Pages: 234. Last update: 2m ago. Status: current")
-    }
-
-    pub fn discord(_prompt: &str) -> String {
-        format!("[discord] Message sent. Channel: general. Members: 1250. Online: 890")
-    }
-
-    pub fn himalaya(_prompt: &str) -> String {
-        format!("[himalaya] Email operations. Inbox: 45 unread. Sent: 1200. Drafts: 3")
-    }
-
-    pub fn onepassword(_prompt: &str) -> String {
-        format!("[1password] Credential retrieved. Strength: excellent. Updated: 30d ago")
     }
 }
