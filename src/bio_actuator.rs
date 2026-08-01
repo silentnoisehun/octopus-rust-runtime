@@ -82,7 +82,7 @@ fn confirmation(prefix: &str, payload: &str) -> String {
 fn run_endurance_guard() -> Result<(), String> {
     let configured = env::var_os("OCTOPUS_ENDURANCE_GUARD")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(r"D:\codex\octopus-runtime-ui\manage-endurance-soak.ps1"));
+        .ok_or_else(|| "set OCTOPUS_ENDURANCE_GUARD env var".to_string())?;
     run_endurance_guard_at(&configured)
 }
 

@@ -178,6 +178,7 @@ impl ArmSnapshot {
     /// Legacy compatibility wrapper. Prefer `try_start`.
     /// PANICS on I/O error — only use in contexts where unwritable state dir is impossible.
     #[allow(dead_code)]
+    #[deprecated(since = "0.1.0", note = "use try_start instead; this panics on I/O error")]
     pub fn start(name: &str, prompt: &str, parent: Option<&str>) -> Self {
         Self::try_start(name, prompt, parent).expect("snapshot start failed")
     }
@@ -202,6 +203,7 @@ impl ArmSnapshot {
     }
 
     /// Legacy compatibility wrapper. Panics on I/O error.
+    #[deprecated(since = "0.1.0", note = "use try_finish instead; this panics on I/O error")]
     pub fn finish(&mut self, outcome: &ExecutionOutcome) {
         self.try_finish(outcome)
             .unwrap_or_else(|e| panic!("snapshot finish failed: {e}"));
@@ -351,4 +353,28 @@ mod tests {
         assert!(!dir.join("events.lock").exists());
         let _ = fs::remove_dir_all(dir);
     }
+
+    #[test]
+    fn try_finish_returns_error_on_io_failure() {
+        let dir = temp_dir("try_finish_error");
+        let mut snap = ArmSnapshot::try_start("test-blade", "test prompt", None).unwrap();
+        
+        // Remove the snapshot file to simulate I/O error on append
+        std::fs::remove_file(&snap.path).unwrap();
+        
+        let outcome = crate::outcome::ExecutionOutcome::completed("ok");
+        let result = snap.try_finish(&outcome);
+        
+        assert!(result.is_err(), "try_finish should return Err when snapshot file is missing");
+        match result {
+            Err(SnapshotError::Io(e)) => {
+                assert_eq!(e.kind(), std::io::ErrorKind::NotFound);
+            }
+            _ => panic!("expected SnapshotError::Io(NotFound)"),
+        }
+        
+        let _ = fs::remove_dir_all(dir);
+    }
+
+
 }
