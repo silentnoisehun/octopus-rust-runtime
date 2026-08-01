@@ -121,6 +121,12 @@ pub fn run_external_read(
         );
     }
 
+    // Redact any tokens from the output before returning
+    let result = ExecutionOutcome {
+        status: result.status,
+        code: result.code,
+        output: redact_tokens(&result.output),
+    };
     result
 }
 
