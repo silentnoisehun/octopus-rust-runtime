@@ -302,7 +302,7 @@ octopus-runtime pipeline "summarize || code-analysis" "probe"
 |--------|-------|
 | Octopus tests | 357 (312 unit + 45 integration), 0 failed |
 | Bio-Binaries tests | 62, 0 failed |
-| Runtime Clippy | clean, `-D warnings` |
+| Runtime Clippy | clean, `--all-targets -- -D warnings` (Rust stable) |
 | Test hygiene | duplicate test attributes removed; every reported test is unique |
 | Capabilities | 225 unique: 168 `real`, 55 `unavailable`, 2 `unsupported` |
 | Windows/offline profile | 164 entries; 0 external integrations; 0 `declared` routes |
