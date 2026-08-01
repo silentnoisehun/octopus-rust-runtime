@@ -192,7 +192,7 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
 
     write_samples_csv(&samples_csv, &all_results).expect("write samples csv");
     write_summary_csv(&summary_csv, &all_results).expect("write summary csv");
-    write_markdown_report(&report_md, &base, &all_results, &failed_modules, timestamp).expect("write markdown");
+    write_markdown_report(&report_md, &base, &all_results, &failed_modules, timestamp, &cfg).expect("write markdown");
 
     let passed = MODULES.len() - failed_modules.len();
     let outcome_msg = format!(
@@ -533,6 +533,7 @@ fn write_markdown_report(
     results: &[RunResult],
     failed: &[&str],
     timestamp: u128,
+    cfg: &BenchmarkConfig,
 ) -> std::io::Result<()> {
     use std::fs;
     use std::collections::HashMap;
@@ -551,10 +552,10 @@ fn write_markdown_report(
     md.push_str(&format!("- Host: `{}` / `{}`\n", whoami::fallible::hostname().unwrap_or_else(|_| "unknown".into()), std::env::consts::OS));
     md.push_str(&format!("- Octopus: `{}`\n", find_octopus_binary().display()));
     md.push_str(&format!("- Bio directory: `{}`\n", find_bio_binary_dir().display()));
-    md.push_str("- Protocol: 0 warmup + 3 measured samples per mode, alternating direct/Octopus order\n");
-    md.push_str("- Timeout: 60 seconds per process\n");
+    md.push_str(&format!("- Protocol: {} warmup + {} measured samples per mode, alternating direct/Octopus order\n", cfg.warmup, cfg.samples));
+    md.push_str(&format!("- Timeout: {} seconds per process\n", cfg.timeout_secs));
     md.push_str(&format!("- Result: {}/{} modules passed\n", MODULES.len() - failed.len(), MODULES.len()));
-    md.push_str("- Evidence class: diagnostic smoke; fewer than 20 pairs\n\n");
+    md.push_str(&format!("- Evidence class: diagnostic smoke; {} measured runs per module per mode\n\n", cfg.samples));
     md.push_str("Pass/fail is functional: every warmup and measured process must exit 0, required artifacts must validate, and every Octopus run must emit its native adapter evidence marker. Latency has no arbitrary pass threshold.\n");
     md.push_str("This harness measures small-fixture end-to-end process latency. It does not establish large-fixture algorithm throughput.\n\n");
 
