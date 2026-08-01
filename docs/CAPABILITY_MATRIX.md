@@ -1,4 +1,4 @@
-# Octopus Capability Matrix - v2.8 working-tree candidate
+# Octopus Capability Matrix — v2.9.0 verified state
 
 Total public capabilities: 225 (the existing 192-entry Octopus surface plus 33 separately bundled Bio-Binaries process targets)
 
@@ -10,18 +10,19 @@ Canonical runtime axes:
 
 `real` means a route exists. It does not by itself claim an external side effect. `windows-offline` requires `real`, rejects external integrations, and requires at least `tested`.
 
-## Current measured candidate
+## Current verified state
 
 - Registry: 225 unique entries
 - Status: 168 `real`, 55 `unavailable`, 2 `unsupported`
 - Windows/offline profile: 164 entries, no external integration, no `declared` route
-- Tests: 357 Octopus tests plus 38 Bio-Binaries tests, 0 failed
-- Native functional smoke: 33/33 targets plus 4/4 generated artifacts
-- Paired latency benchmark: 660/660 direct/Octopus pairs; typical paired boundary cost 24.217 ms
-- Parallel scaling: 48/48 jobs; 16.998 to 40.930 jobs/s from concurrency 1 to 8 (2.408x)
+- Tests: 357 Octopus tests plus 62 Bio-Binaries tests, 0 failed
+- Native functional smoke: 33/33 targets plus 7/7 artifact checks
+- Current v0.3 diagnostic pilot: 33/33 direct and Octopus module cases with three measured samples per lane; concurrency disabled
+- Historical pre-v0.3 latency: 660/660 direct/Octopus pairs; typical paired boundary cost 24.217 ms for the recorded executables
+- Historical pre-v0.3 scaling: 48/48 jobs; 16.998 to 40.930 jobs/s from concurrency 1 to 8 (2.408x)
 - Integrity: 33/33 release executables SHA-256 pinned and checked before process launch
 - Clippy: clean with `-D warnings`
-- Installed Octopus release SHA-256: `CBE3DD06BFB4C0597B8822188F4CABD87132D3B0101224D44ADA68EF117D4A49`
+- Release hashes belong in the checksum file shipped with each future GitHub Release; Git does not contain generated executables.
 
 ## Bundled native Bio subsystem
 
@@ -53,7 +54,7 @@ Legacy v2.5 row status key (non-canonical):
 - Clippy: clean (strict -D warnings)
 - Build: clean
 - All unavailable/unsupported blades return typed failures, not Completed-wrapped strings
-- Snapshots: panic-free, Result-based API
+- Snapshots: Result-based API with tested typed failure paths
 
 ## Legacy detailed contract inventory
 

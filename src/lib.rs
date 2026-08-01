@@ -22,9 +22,6 @@ mod snapshot;
 mod state_lock;
 mod state_path;
 
-#[cfg(feature = "sigma")]
-pub mod manus_blades;
-
 pub use capability::{
     CapabilityExecutionClass, CapabilityInfo, CapabilityMode, CapabilityProfile, CapabilityStatus,
     VerificationGrade,

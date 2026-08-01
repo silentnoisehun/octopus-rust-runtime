@@ -23,9 +23,9 @@ Blades perform file operations, diagnostics, tests, process execution, measureme
 
 The runtime checks capability status, execution class, verification grade, platform profile, and write authority before dispatch. It isolates arms under one accountable root, records typed outcomes, persists snapshots, and provides recovery and rollback paths.
 
-## Why it is faster
+## Efficiency mechanisms
 
-- Routine work runs locally without a model call for every small operation.
+- Routine work can run locally without a model call for every small operation.
 - Deterministic tools avoid repeated reasoning for repeatable procedures.
 - Independent arms can execute concurrently under one convergence point.
 - Compact receipts and reference-only context reduce token movement.
@@ -54,6 +54,6 @@ Octopus Exoskeleton does not guarantee that an AI will never reason incorrectly.
 - A separately bundled Bio-Binaries v0.3.0 crate with 33 native executables, exact process isolation, explicit write/control authorization and embedded release hashes.
 - Verified Bio v0.3.0 artifact paths: bounded Ribosome source/binary generation and local replication, real CryoFrame/BFSK encode-decode, and durable WaveField emergent-event history.
 - Explicit write authorization, transactional local writes, snapshots, backup, restore, and recovery.
-- Working-tree candidate: 357 passing Octopus tests, 38 passing Bio tests, strict Clippy, and a 33/33 native functional smoke matrix.
-- Recorded Bio benchmark: 660/660 paired direct/Octopus samples and 48/48 concurrency jobs; the typical paired production-boundary cost was 24.217 ms and eight-way throughput reached 2.408x the single-job baseline.
-- A monitored 24-hour HUD/runtime endurance test is in progress; production endurance status becomes final only when its result file records `passed`.
+- Verified v2.9.0 state: 357 passing Octopus tests, 62 passing Bio tests, strict runtime Clippy, release builds, a 33/33 native functional smoke matrix, and 7/7 artifact checks.
+- Historical pre-v0.3 benchmark: 660/660 paired direct/Octopus samples and 48/48 concurrency jobs; retained for the exact recorded executables, not presented as current v0.3 performance.
+- Current v0.3 diagnostic pilot: all 33 modules passed in direct and Octopus lanes with three measured samples per lane; concurrency was disabled, so this is coverage evidence rather than a scaling claim.

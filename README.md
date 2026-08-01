@@ -1,12 +1,12 @@
 # Octopus Exoskeleton
 
-> Production Safety Runtime for AI Systems.
+> Policy-gated Rust execution runtime for AI-assisted workflows.
 
-Octopus Exoskeleton is a Rust-based safety and execution layer for production AI systems. It separates model decisions from operational execution: the AI interprets the goal and selects an allowed route, deterministic blades perform bounded work under explicit contracts, and the Exoskeleton enforces capability profiles, authorization, isolation, typed failures, snapshots, audit trails, and rollback.
+Octopus Exoskeleton is a Windows-focused Rust execution layer that separates model decisions from operational execution. The AI interprets the goal and selects an allowed route; deterministic blades perform bounded work under explicit contracts; the runtime enforces capability profiles, authorization, typed failures, snapshots, audit trails, and rollback paths.
 
-It does not claim to make an AI model infallible. It prevents a wrong model decision from becoming an unrestricted, unauthorized, irreversible, or invisible operation.
+It is not a formal safety proof and cannot control actions performed outside its boundary. For operations routed through Octopus, its controls are designed to limit unauthorized, irreversible, or untracked side effects.
 
-This separation also reduces latency and token use. Routine operations run locally without repeated model calls, independent arms can execute concurrently, and every material action remains bounded and auditable.
+Local blades can avoid additional model calls, and independent arms can execute concurrently. End-to-end latency and token use remain workload-dependent; the Bio benchmark measures the process/policy boundary rather than claiming a universal speedup.
 
 > **AI decides within policy. Blades execute within contracts. The Exoskeleton enforces the boundary.**
 
@@ -20,7 +20,7 @@ You give it a prompt. It splits the work. Arms run. Results converge. Everything
 
 - **One root, one decision** — arms never create sub-roots, so accountability is never diluted
 - **Typed failures, always** — Unavailable, Unsupported, execution errors, I/O errors: every failure has a code, not a string
-- **Panic-free** — no `.expect()` on I/O paths. Snapshots use `Result<T, SnapshotError>`. Drop is safe.
+- **Fallible snapshot I/O** — snapshot operations use `Result<T, SnapshotError>` and tested failure paths fail closed.
 - **Resume and retry with real state** — resume picks up orphaned arms, retry re-executes with the stored prompt, not a guess
 - **Auditable** — every root, arm, and event is persisted. You can `status <id>` any past execution
 - **Crash-safe state** — snapshots are replaced atomically, event writes are process-locked, IDs include the process, and malformed status records fail closed
@@ -95,17 +95,17 @@ Mutation applies fail closed when the endurance guard or durable audit snapshot 
 
 ### Run the Native Bio-Binaries Subsystem
 
-The complete Bio-Binaries v0.3.0 project is bundled at `bio-binaries/` as an independent Cargo crate with its own manifest, lockfile, source tree, tests and 33 release executables. Octopus does not port or merge their algorithms. It catalogs, authorizes, SHA-256-verifies and starts the exact native executables across a process boundary:
+The repository includes Bio-Binaries v0.3.0 at `bio-binaries/` as an independent Cargo crate with its own manifest, lockfile, source tree, tests and 33 executable targets. Release executables are reproducible build artifacts and are not committed. Octopus does not port or merge their algorithms; installed builds are cataloged, authorized, SHA-256-verified and started across a process boundary:
 
 ```powershell
 octopus-runtime bio status
-octopus-runtime bio external hox-diff -- D:\codex\octopus-rust-runtime
+octopus-runtime bio external hox-diff -- .
 octopus-runtime bio external viral-infect --allow-mutation -- <fixture> --pattern alpha --replace beta --dry-run
 ```
 
 Read targets can run directly. Write and control targets fail closed unless `--allow-mutation` is explicit. Arguments are forwarded exactly without shell tokenization; child execution is limited to 64 arguments, 32 KiB of input, 512 KiB of output and 30 seconds. Every executable is pinned by the embedded `bio-binaries/RELEASE_SHA256SUMS` inventory before launch. The filtered child environment preserves the standard Windows toolchain-root variables required for native MSVC discovery without inheriting arbitrary application secrets. Bio self-integrity state and temporary data live in a private subsystem directory instead of colliding with global `%TEMP%` state.
 
-Run the repeatable production smoke matrix with:
+Run the repeatable functional smoke matrix with:
 
 ```powershell
 .\scripts\verify-bio-system.ps1
@@ -115,15 +115,15 @@ The current matrix executes one safe functional path through every native target
 
 ### Benchmark the Complete Bio Subsystem
 
-The paired benchmark harness runs every Bio target directly and through the full Octopus production boundary with identical arguments, alternating order and isolated state:
+The paired benchmark harness runs every Bio target directly and through the Octopus policy, integrity and process boundary with identical arguments, alternating order and isolated state:
 
 ```powershell
 .\scripts\benchmark-bio-system.ps1 -Warmup 3 -Samples 20 -Parallelism @(1,2,4,8) -ParallelRepeats 3
 ```
 
-On the recorded Ryzen 5 7535HS machine, all 660 measured pairs and all 48 scaling jobs completed. The median of the 33 direct module medians was 28.187 ms; through Octopus it was 51.966 ms. The typical paired production-boundary cost was 24.217 ms. Eight-way concurrency increased throughput from 16.998 to 40.930 jobs/s, a 2.408x speedup.
+The current v0.3 diagnostic pilot completed all 33 module cases in both direct and Octopus lanes with three measured samples per lane. Median-of-module-medians latency was 28.053 ms direct and 52.517 ms through Octopus; the median paired boundary cost was 24.157 ms. Concurrency was disabled, so this pilot validates current harness coverage and small-fixture behavior, not throughput or scaling.
 
-These are small-fixture end-to-end latency results from the pre-v0.3.0 activation build, not a world-record or large-dataset throughput claim. Ribosome, Wave-Cryo and WaveField semantics changed after that run, so use the result as historical boundary evidence and rerun the harness for current per-module numbers. See [the complete benchmark result](./docs/BIO_BENCHMARK_RESULTS_20260801.md) and [methodology/claim limits](./docs/BIO_BENCHMARK_METHODOLOGY.md).
+The committed 660-pair and 48-job report is historical pre-v0.3 evidence. Ribosome, Wave-Cryo and WaveField semantics changed afterward, so those numbers are not current v0.3 performance claims. See [the benchmark result and current-pilot note](./docs/BIO_BENCHMARK_RESULTS_20260801.md) and [methodology/claim limits](./docs/BIO_BENCHMARK_METHODOLOGY.md).
 
 ### Verify the Resonance Chain
 
@@ -133,7 +133,7 @@ Every finished Octopus root is appended to a sidecar SHA-256 chain containing ro
 octopus-runtime resonance --verify --tail 10
 ```
 
-The technical chain is complemented by the human-readable workspace ledger at `D:\codex\RESONANCE_LOG.md`.
+Deployments may maintain a separate human-readable journey ledger; it is not part of this repository or the technical verification chain.
 
 ### Let the Marshal Select the Topology
 
@@ -239,7 +239,7 @@ octopus-rust-runtime/
 │   ├── capability.rs       Routing, effect/evidence axes, profiles and blade gates
 │   ├── orchestration.rs    Root/arm lifecycle, create_arm_restricted
 │   ├── resonance.rs        Append-only SHA-256 root chain, verification and CLI report
-│   ├── snapshot.rs         Panic-free snapshot I/O with Result API
+│   ├── snapshot.rs         Result-based snapshot I/O and typed failures
 │   ├── maintenance.rs      Backup sealing/verification, state audit and repair
 │   ├── marshal.rs          Minimal-token task classification and psi topology selection
 │   ├── state_lock.rs       Cross-process shared/exclusive state lock
@@ -257,7 +257,7 @@ octopus-rust-runtime/
 ├── scripts/
 │   ├── verify-bio-system.ps1   33-target native functional smoke and artifact validation
 │   └── benchmark-bio-system.ps1 Paired direct/Octopus latency and concurrency benchmark
-├── bio-binaries/               Independent v0.3.0 Cargo crate and 33 native release executables
+├── bio-binaries/               Independent v0.3.0 Cargo crate with 33 executable targets
 ├── docs/
 │   ├── CAPABILITY_MATRIX.md    Full blade inventory with status
 │   ├── BIO_BENCHMARK_METHODOLOGY.md Normative 33-target measurement and claim protocol
@@ -278,7 +278,7 @@ Every change must pass these, in order:
 cargo fmt --check                        # Formatting
 cargo clippy --locked --all-targets -- -D warnings  # Zero warnings
 cargo test --locked                      # All Octopus tests green (357 currently)
-cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 61 Bio tests
+cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 62 Bio tests
 cargo build --release --locked           # Release binary
 ```
 
@@ -296,40 +296,31 @@ octopus-runtime pipeline "summarize || code-analysis" "probe"
 # Must produce real root ID, exit 0
 ```
 
-## Previous v2.8.1 baseline
-
-| Metric | Value |
-|--------|-------|
-| Tests | 333 (294 unit + 39 integration), 0 failed |
-| Capabilities | 192 unique registry entries: 137 `real`, 53 `unavailable`, 2 `unsupported` |
-| Clippy | clean, `-D warnings` |
-| SHA-256 | `0C8CD0E0896B9A6B32A17B124B3BCC62D68D6666980098AF49C65A1CFCC2CB89` |
-| Release state | local hardening build, not tagged |
-| Former install path | `C:\Users\mater\.agents\skills\octopus\bin\octopus-runtime.exe` |
-
-### Working-tree Bio-native candidate
+## Verified v2.9.0 state — 2026-08-01
 
 | Metric | Value |
 |--------|-------|
 | Octopus tests | 357 (312 unit + 45 integration), 0 failed |
-| Bio-Binaries tests | 61, 0 failed |
-| Clippy | clean, `-D warnings` |
+| Bio-Binaries tests | 62, 0 failed |
+| Runtime Clippy | clean, `-D warnings` |
 | Test hygiene | duplicate test attributes removed; every reported test is unique |
 | Capabilities | 225 unique: 168 `real`, 55 `unavailable`, 2 `unsupported` |
 | Windows/offline profile | 164 entries; 0 external integrations; 0 `declared` routes |
-| Native Bio subsystem | 33/33 release binaries built; 33/33 functional smoke; 4/4 generated artifacts |
+| Native Bio subsystem | 33/33 functional smoke paths; 7/7 artifact checks |
 | Bio release integrity | 33 embedded SHA-256 pins; tampered executable refused before launch |
-| Paired Bio benchmark | 660/660 pairs; typical direct 28.187 ms, Octopus 51.966 ms, paired boundary cost 24.217 ms |
-| Parallel Bio scaling | 16.998 → 40.930 jobs/s at concurrency 1 → 8; 2.408x speedup |
-| Release SHA-256 | `C8F7C50CC87C5322B50E8635A95651448193EB5A6A48B3E95605FA10391CE9D5` |
-| Install state | Runtime plus all 33 pinned Bio executables installed under `C:\Users\mater\.agents\skills\octopus\bin` |
+| Current v0.3 pilot | 33/33 direct and Octopus cases; 3 measured samples/lane; no concurrency claim |
+| Historical benchmark | 660/660 pre-v0.3 pairs and 48/48 scaling jobs; retained as historical evidence only |
+
+## Known limitations
+
+- Windows 64-bit is the tested platform; Linux is untested and macOS-only blades return typed `Unsupported` outcomes.
+- The controls apply only to operations routed through Octopus and have not undergone a formal verification or independent security audit.
+- Bio `microscope-mem` persistence delegation, successful multi-peer `collective-sync`, and live audio-device RX remain incomplete.
+- BioMessage keyed authentication exists, but JOIN admission/session enforcement is incomplete; do not expose `omega-master` to untrusted networks.
+- Release executables are not stored in Git. Build them locally and regenerate the pin inventory for the exact binaries being deployed.
 
 Full version history in [CHANGELOG.md](./CHANGELOG.md).
 
-## Platform
-
-Windows 64-bit. macOS-only blades return `Unsupported` with a typed failure. Linux not tested.
-
 ## License
 
-MIT — see [Cargo.toml](./Cargo.toml).
+MIT — see [LICENSE](./LICENSE).

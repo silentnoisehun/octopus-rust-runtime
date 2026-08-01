@@ -3,6 +3,8 @@ use clap::Parser;
 use serde::Serialize;
 use std::time::Instant;
 
+pub const MAX_POWER: u32 = 4;
+
 #[derive(Parser)]
 #[command(
     name = "borg-cube",
@@ -13,7 +15,11 @@ pub struct Cli {
     pub command: String,
 
     /// Maximum replication power (2^N instances)
-    #[arg(long, default_value = "4")]
+    #[arg(
+        long,
+        default_value = "4",
+        value_parser = clap::value_parser!(u32).range(0..=MAX_POWER as i64)
+    )]
     pub max_power: u32,
 
     #[arg(long = "echo-x")]
@@ -44,6 +50,7 @@ pub struct BorgResult {
 }
 
 pub fn run(command: &str, max_power: u32) -> BorgResult {
+    let max_power = max_power.min(MAX_POWER);
     let parts: Vec<&str> = command.split_whitespace().collect();
     let (cmd, cmd_args) = parts.split_first().unwrap_or((&"echo", &[]));
 
@@ -172,4 +179,15 @@ pub async fn dispatch(args: &[String]) -> Result<String, String> {
 
     print_pretty(&result);
     Ok(String::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_rejects_unbounded_replication_power() {
+        assert!(Cli::try_parse_from(["borg-cube", "echo ok", "--max-power", "4"]).is_ok());
+        assert!(Cli::try_parse_from(["borg-cube", "echo ok", "--max-power", "5"]).is_err());
+    }
 }

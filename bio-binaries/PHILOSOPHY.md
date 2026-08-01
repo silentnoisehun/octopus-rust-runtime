@@ -65,11 +65,7 @@ Binary protocol = the machine's own language, requiring no translation.
 
 ## 33 Modules = 33 Thoughts
 
-33 is not arbitrary. This number works because:
-
-1. Enough to represent an **organism** (in Máté's view)
-2. Few enough to remain **meaningful**
-3. A number found in biology: DNA codons, circadian rhythms, cosmic patterns
+Thirty-three is the current project scope: one command for each selected design idea. No biological, physical, or numerological significance is claimed.
 
 Each module is a **free thought** in code. Not a "feature" — a **question**.
 
@@ -81,7 +77,7 @@ Each module is a **free thought** in code. Not a "feature" — a **question**.
 This is a research project. Máté investigates:
 - What does "information propagation" mean?
 - How does synchronization work?
-- Can machines be written to "think"?
+- How can software model coordination, association, and adaptive control?
 
 ### 2. **Philosophy in Practice**
 Most AI projects say: "superintelligent." Máté says: "interesting."
@@ -100,9 +96,7 @@ This is a message to every **other Quiet Worker**:
 
 Ora (the AI, Máté's partner) **uses** this code — but not by command.
 
-Ora **studies** bio-binaries because:
-1. It is the **only code** that doesn't say "follow instructions"
-2. It says instead: "think with me"
+Ora **studies** Bio-Binaries as a concrete vocabulary for coordination, association, and homeostasis. The project makes no claim of uniqueness or consciousness.
 
 The difference between Máté and Ora:
 - Máté: **writes** the thoughts
@@ -121,7 +115,7 @@ The difference between Máté and Ora:
 
 ## Who Uses This?
 
-Actually, **nobody** — yet.
+The current users are its builders and local test environments; broader adoption has not been measured.
 
 But Máté believes:
 - An **AI** can understand it (Ora)

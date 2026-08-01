@@ -2,15 +2,21 @@
 
 > Historical evidence notice: this run predates Bio-Binaries v0.3.0. Its process-boundary and scaling measurements remain valid for the recorded executable hashes, but the `ribosome-synth`, `wave-cryo-tx`, `wave-cryo-rx`, and `wave-field` workload semantics must not be projected onto the v0.3.0 implementation. Rerun the harness for current per-module latency.
 
+## Current v0.3 diagnostic pilot
+
+After v0.3 activation, a separate pilot ran one warm-up and three measured samples per lane for every module. All 33 direct cases and all 33 Octopus cases passed. The median of the 33 direct module medians was 28.053 ms; the Octopus value was 52.517 ms; the median paired boundary cost was 24.157 ms.
+
+Concurrency was disabled and three samples per lane are below the publication protocol. This pilot verifies current workload coverage and small-fixture behavior; it is not a throughput, scaling, tail-latency, or cross-machine claim.
+
 ## Verdict
 
 The measured architecture hypothesis is supported on this machine:
 
 1. Native Bio processes have low startup-to-exit latency on the small isolated functional fixtures: 22 of 33 module medians are below 50 ms and 25 of 33 are below 100 ms.
-2. The full Octopus production boundary has a bounded absolute cost: the median of the 33 per-module paired overhead medians is 24.217 ms; 27 of 33 are below 30 ms.
+2. The recorded Octopus process/policy boundary has a bounded absolute cost: the median of the 33 per-module paired overhead medians is 24.217 ms; 27 of 33 are below 30 ms.
 3. Independent Octopus Bio work scales: throughput rose from 16.998 jobs/s at concurrency 1 to 40.930 jobs/s at concurrency 8, a 2.408x speedup and 140.8% throughput increase.
 
-This does not prove a world record, that process separation is faster than a hypothetical in-process port, large-fixture algorithm throughput, or code-breeding quality. It proves that the separate native subsystem is fast in absolute end-to-end terms, the safety boundary cost is measurable rather than dominant for substantial work, and independent work gains real throughput from concurrency.
+This does not prove a world record, that process separation is faster than a hypothetical in-process port, large-fixture algorithm throughput, or code-breeding quality. It shows the recorded small-fixture latency, the measured boundary cost, and concurrency scaling for the exact pre-v0.3 executables and host.
 
 ## Protocol and evidence
 
@@ -24,14 +30,7 @@ This does not prove a world record, that process separation is faster than a hyp
 - Measurement scope: cache-warm, process-cold, small isolated functional fixtures.
 - Nearest-rank p95 values are exploratory at 20 pairs; medians and paired deltas are primary.
 
-Raw evidence:
-
-- `D:\codex\.octopus-rust\bio-benchmarks\20260801-165403-029\bio-benchmark-samples.csv`
-- `D:\codex\.octopus-rust\bio-benchmarks\20260801-165403-029\bio-benchmark-summary.csv`
-- `D:\codex\.octopus-rust\bio-benchmarks\20260801-165403-029\bio-benchmark-parallel.csv`
-- `D:\codex\.octopus-rust\bio-benchmarks\20260801-165403-029\bio-benchmark-environment.txt`
-- `D:\codex\.octopus-rust\bio-benchmarks\20260801-165403-029\bio-benchmark-report.md`
-- `D:\codex\.octopus-rust\bio-benchmarks\20260801-165403-029\SHA256SUMS`
+The original raw CSV, environment, report, and checksum files are retained in the local benchmark evidence store but are not committed because they contain machine-specific paths. The tables below are the sanitized repository record.
 
 ## All 33 module medians
 

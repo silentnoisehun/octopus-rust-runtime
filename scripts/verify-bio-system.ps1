@@ -1,6 +1,14 @@
 param(
-    [string]$Octopus = (Join-Path $PSScriptRoot "..\target\debug\octopus-runtime.exe"),
-    [string]$BioBinaryDir = (Join-Path $PSScriptRoot "..\bio-binaries\target\release"),
+    [string]$Octopus = $(
+        $installed = "C:\Users\mater\.agents\skills\octopus\bin\octopus-runtime.exe"
+        if (Test-Path -LiteralPath $installed -PathType Leaf) { $installed }
+        else { Join-Path $PSScriptRoot "..\target\release\octopus-runtime.exe" }
+    ),
+    [string]$BioBinaryDir = $(
+        $installed = "C:\Users\mater\.agents\skills\octopus\bin\bio-binaries"
+        if (Test-Path -LiteralPath $installed -PathType Container) { $installed }
+        else { Join-Path $PSScriptRoot "..\bio-binaries\target\release" }
+    ),
     [string]$ArtifactRoot = (Join-Path $PSScriptRoot "..\..\.octopus-rust\bio-functional-smoke")
 )
 

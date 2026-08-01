@@ -95,7 +95,7 @@ Legend: ✅ = functional, working | ⚠️ = security-gated | ⏳ = partial/stub
 ./telepathy-sync /local/code /remote/code --dry-run
 ```
 
-**Security:** BLAKE3 integrated — if a file changes mid-copy, it's detected.
+**Integrity scope:** source files are indexed with BLAKE3 before synchronization. Post-copy target revalidation and mid-copy race detection are not currently guaranteed.
 
 ---
 
@@ -243,7 +243,7 @@ Legend: ✅ = functional, working | ⚠️ = security-gated | ⏳ = partial/stub
 **Input:** Canonical template ID, validated drone name, existing output root, optional `--apply`
 **Output:** Generation plan or atomically published Rust source + compiled binary; replication plans or hash-verified local copies
 **Use case:** Generate or replicate contained artifacts without auto-starting them
-**Status:** ✅ Working
+**Status:** ⚠️ Experimental client surface. Connection and offline behavior exist; successful multi-peer vote reconciliation is not yet verified.
 
 ```bash
 mkdir generated
@@ -438,45 +438,38 @@ mkdir generated
 ### 1. Binary Integrity Check (BIO-SECURITY)
 **Active on:** wave-encoder, brain-synapse, brain-connectome, aether-excite, aether-fabric, eqm-pulse, iron-resonate, hox-diff
 
-These commands use BLAKE3 to verify the binary hasn't changed since last run. If modified → **they refuse to execute** (self-protection).
+These commands compare a BLAKE3 hash with a writable local sidecar baseline. This can detect ordinary changes, but it is not tamper-proofing and does not replace signed release verification.
 
 ```
 [BIO-SECURITY] Binary integrity check FAILED for wave-encoder.
 [BIO-SECURITY] Possible mutation detected. The executable has been modified since last verified run. Aborting.
 ```
 
-**Purpose:** Prevent unauthorized binary modification.
+**Purpose:** Detect changes relative to a local baseline.
 
 ### 2. Queen Key Authentication (omega-master)
 **Active on:** omega-master, omega-point, collective-sync
 
-The Queen server generates a BLAKE3 keypair; drones authenticate with session tokens.
+BioMessage supports a 32-byte symmetric keyed-BLAKE3 authentication key. JOIN admission and session-token enforcement are incomplete; keep `omega-master` on trusted/local networks.
 
 **Files:**
-- `.bio-queen.key` — private key
+- `.bio-queen.key` — symmetric authentication key
 - `drone_registry.json` — authorized drone list
 
 ### 3. BLAKE3 Checksums (telepathy-sync, eqm-methy)
-Every file is verified by BLAKE3 hash. Hash mismatch → sync fails.
+Source files are indexed with BLAKE3. The current sync path does not guarantee post-copy target revalidation.
 
 ### 4. Exponential Power Limit (borg-cube)
-Max 2^N (typical: 2^4 = 16). Cannot scale to 2^32 (DoS protection).
+`--max-power` is hard-capped at 4, so one stage launches at most 2^4 = 16 instances.
 
 ### 5. CRC Integrity (wave-cryo-tx/rx)
-CRC-16 CCITT on acoustic frames. BFSK modulation has implicit error correction.
+CRC-16 CCITT detects corrupted acoustic frames. Forward error correction is not implemented.
 
 ---
 
-## STATUS SUMMARY
+## VERIFIED SNAPSHOT
 
-| Category | Working | Security-gated | Stub |
-|----------|---------|----------------|------|
-| Bio-Evolution | 4 | 3 | 0 |
-| Quantum-Space | 4 | 3 | 0 |
-| Machine-Brain | 6 | 1 | 1 (homeostasis was stub, now working) |
-| Resonance | 8 | 3 | 0 |
-| Audio | 2 | 0 | 0 |
-| **Total** | **24** | **9** | **0** |
+62 Rust tests passed; the release build passed; all 33 installed command surfaces passed functional smoke; 7/7 artifact checks passed. These results are not a security audit or proof of every distributed or live-audio path.
 
 ---
 
@@ -502,20 +495,14 @@ wave-sculptor    wave-field       microscope-mem
 
 ## DEPLOYMENT STATUS
 
-✅ **Ready for production:**
-- viral-infect, plasmid-inject, plasmid-dream, telepathy-sync
-- telepathy-entangle, borg-cube, nexus-logic, collective-sync
-- eqm-methy, grid-warp, path-resonance, magneto-geo
-- magneto-acoustic, mycelium-spread, omega-master, omega-point
-- wave-encoder, wave-sculptor, wave-field, microscope-mem
-- wave-cryo-tx, wave-cryo-rx, vagus-nerve, homeostasis
-- brain-synapse
+Research-grade, usable software with verified local command paths. It has not undergone an independent security audit or production deployment qualification.
 
-⚠️ **Security-gated (binary integrity check):**
-- hox-diff, aether-excite, aether-fabric, eqm-pulse
-- brain-connectome, iron-resonate, wave-encoder, brain-synapse
+Explicitly incomplete surfaces:
 
-✅ **All 33 binaries compile and run with 0 cargo errors.**
+- `microscope-mem`: compatibility wrapper; persistent delegation is not connected.
+- `collective-sync`: successful multi-peer reconciliation is not verified.
+- `wave-cryo-rx`: WAV-file decode is verified; live audio-device capture is not implemented.
+- `omega-master`: JOIN/session admission is incomplete; trusted/local networks only.
 
 ---
 

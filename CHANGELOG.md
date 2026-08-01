@@ -1,19 +1,10 @@
 # Changelog
 
-## v2.8.1 — 2026-07-22
-
-### Fixed
-- `code-writer` now validates `path|expected_hash|content` fields independently, preserving multiline content, pipe characters, empty files, trailing spaces and final newlines.
-- `run code-writer` and `arm code-writer` preserve raw stdin bytes instead of trimming file content.
-
-### Tests
-- Added end-to-end visual-arm coverage through the real `arm code-writer` CLI and snapshot lifecycle; the candidate suite now contains 309 unique passing tests.
-
-## Unreleased - Marshal candidate
+## v2.9.0 — 2026-08-01
 
 ### Added
 - Complete Bio-Binaries v0.3.0 project bundled as an independent Cargo crate and native process subsystem instead of ported Octopus modules
-- Production Ribosome generation: deterministic embedded template rendering, contained filenames, explicit apply gate, staged rustc compilation, BLAKE3 receipts, no-clobber publication and bounded verified local replication without auto-spawn
+- Bounded local Ribosome generation: deterministic embedded template rendering, contained filenames, explicit apply gate, staged rustc compilation, BLAKE3 receipts, no-clobber publication and bounded verified local replication without auto-spawn
 - Real Wave-Cryo command data path with validated 1200/600 Hz BFSK contract, `.cryo` integrity load, staged WAV encode, CRC/hash-verified decode, compressed artifact publication and end-to-end roundtrip tests
 - Durable versioned WaveField emergent-event sidecar with an 8 MiB load cap, newest-1000 bound, atomic persistence, restart/corruption tests and a real `wave-field events` query
 - Functional smoke receipts for generated Ribosome source, compiled binary and successful execution
@@ -49,8 +40,8 @@
 
 ### Tests
 - Octopus: 357 passing tests (312 unit + 45 integration)
-- Bio-Binaries: 38 passing tests
-- Native process smoke: 33/33 targets and 4/4 generated artifact checks
+- Bio-Binaries: 62 passing tests
+- Native process smoke: 33/33 targets and 7/7 generated artifact checks
 - Paired benchmark: 660/660 measured pairs; concurrency scaling: 48/48 jobs
 - Bio mutation applies now acquire the exclusive runtime-state lock and require a durable root/arm audit snapshot before touching the target
 - Short incident markers use token boundaries, and bounded synaptic analysis reports when input was truncated
@@ -68,6 +59,15 @@
 - Removed duplicate test attributes that inflated earlier counts; the canonical candidate suite is now 344 unique tests
 - Removed a stale atomic import and restored the package-scoped zero-warning quality gate
 - Restored 33 callable runtime adapters and integrations to the public registry without restoring duplicate batch implementations
+
+## v2.8.1 — 2026-07-22
+
+### Fixed
+- `code-writer` now validates `path|expected_hash|content` fields independently, preserving multiline content, pipe characters, empty files, trailing spaces and final newlines.
+- `run code-writer` and `arm code-writer` preserve raw stdin bytes instead of trimming file content.
+
+### Tests
+- Added end-to-end visual-arm coverage through the real `arm code-writer` CLI and snapshot lifecycle; the candidate suite contained 309 unique passing tests at that revision.
 
 ## v2.8.0 — 2026-07-16
 
@@ -109,7 +109,7 @@
 - State path selection is centralized across orchestration, lifecycle snapshots and maintenance
 
 ### Fixed
-- Unit tests can no longer inherit the production `D:\codex\.octopus-rust` default
+- Unit tests can no longer inherit the live workspace state default
 - Tampered, incomplete, duplicated or structurally invalid backup payloads fail verification
 - Manifest path handling is component-based and constrained to direct `state-*` backup identifiers
 

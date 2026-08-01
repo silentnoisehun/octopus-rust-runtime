@@ -1,11 +1,11 @@
 [package]
 name = "octopus-runtime"
-version = "2.8.1"
+version = "2.9.0"
 edition = "2021"
 description = "Standalone native Rust blade runtime for Octopus orchestration"
 license = "MIT"
-repository = "https://github.com/mater/octopus-rust-runtime"
-homepage = "https://github.com/mater/octopus-rust-runtime"
+repository = "https://github.com/silentnoisehun/octopus-rust-runtime"
+homepage = "https://github.com/silentnoisehun/octopus-rust-runtime"
 publish = false
 
 [dependencies]
@@ -19,12 +19,6 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-blade-core = { path = "../blades/blade-core" }
-sigma-striker = { path = "E:/Manus Silent/sigma-striker", optional = true }
-
-[features]
-default = []
-sigma = ["sigma-striker"]
 
 [profile.release]
 strip = true
