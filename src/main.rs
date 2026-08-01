@@ -83,6 +83,9 @@ enum Command {
     Retry {
         arm_id: String,
     },
+    /// Cancel a root by marking its running arms as cancelled in state.
+    /// Does NOT interrupt in-flight processes (blades run synchronously in this process).
+    /// Use to mark stuck/orphaned arms for audit purposes.
     Cancel {
         root_id: String,
     },

@@ -748,7 +748,7 @@ pub fn orch_cancel(root_id: &str) -> ExecutionOutcome {
             for child_id in &children {
                 match orchestration::get_arm(child_id) {
                     Some(arm) if arm.status == orchestration::ArmStatus::Running => {
-                        // Attempt process-level cancellation where supported
+                        // Mark arm as cancelled in state (no process-level kill; blades run synchronously in this process)
                         if orchestration::cancel_arm(child_id).is_ok() {
                             cancelled += 1;
                         } else {

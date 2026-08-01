@@ -310,6 +310,10 @@ pub fn finish_root(root_id: &str, outcome: &ExecutionOutcome) {
     }
 }
 
+/// Marks an arm as cancelled in the orchestration state.
+/// Does NOT interrupt an in-flight process — blades execute synchronously
+/// in the current process and cannot be preemptively killed.
+/// Use this to mark stuck/orphaned arms as cancelled for audit purposes.
 pub fn cancel_arm(arm_id: &str) -> Result<(), ExecutionOutcome> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
