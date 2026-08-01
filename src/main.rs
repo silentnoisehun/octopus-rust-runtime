@@ -89,6 +89,22 @@ enum Command {
     Cancel {
         root_id: String,
     },
+    /// Run end-to-end benchmarks on all 33 Bio-Binaries targets (direct + Octopus).
+    /// Outputs CSV + Markdown report to .octopus-rust/bio-benchmarks/<timestamp>/
+    Benchmark {
+        /// Warmup runs per module before measured samples.
+        #[arg(long, default_value_t = 1)]
+        warmup: usize,
+        /// Measured samples per module per mode.
+        #[arg(long, default_value_t = 3)]
+        samples: usize,
+        /// Timeout per process in seconds.
+        #[arg(long, default_value_t = 60)]
+        timeout: u64,
+        /// Keep raw output for every run (not just failures).
+        #[arg(long)]
+        keep_raw: bool,
+    },
     Orphans,
     StateAudit {
         #[arg(long, default_value_t = 24)]
@@ -468,6 +484,16 @@ fn main() {
         }
         Command::Cancel { root_id } => {
             print_outcome(octopus_runtime::orch_cancel(&root_id));
+        }
+        Command::Benchmark { warmup, samples, timeout, keep_raw } => {
+            let cfg = octopus_runtime::bio_benchmark::BenchmarkConfig {
+                warmup,
+                samples,
+                timeout_secs: timeout,
+                keep_raw,
+            };
+            let outcome = octopus_runtime::bio_benchmark::run_benchmarks(cfg);
+            print_outcome(outcome);
         }
         Command::Orphans => {
             print_outcome(octopus_runtime::orch_orphans());
