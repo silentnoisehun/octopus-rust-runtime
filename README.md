@@ -1,5 +1,20 @@
 # Octopus Exoskeleton
 
+![Octopus Exoskeleton Architecture](./octopus_exoskeleton_blueprint.jpg)
+
+Without Octopus, you give the AI the keyboard and pray. With Octopus, you give it a goal, and Octopus gives it a permission card, a measuring tape, and a diary.
+
+> **AI decides within policy. Blades execute within contracts. The Exoskeleton enforces the boundary.**
+
+Octopus is a policy-gated Rust execution runtime for AI-assisted workflows. It separates what the model wants to do from what the system allows it to do.
+
+## How it works in 10 seconds
+
+1. **ROOT DECISION** — One head owns the decision. One prompt, one accountability.
+2. **POLICY GATE** — Every arm must pass a capability gate. If it is not allowed, it fails with a typed error, not a hallucination.
+3. **BLADE EXECUTION** — Deterministic work happens in bounded, auditable blades operating within explicit contracts.
+4. **AUDIT LOG** — Every root, arm, and event is persisted, SHA-256 chained, and queryable.
+
 > Policy-gated Rust execution runtime for AI-assisted workflows.
 
 Octopus Exoskeleton is a Windows-focused Rust execution layer that separates model decisions from operational execution. The AI interprets the goal and selects an allowed route; deterministic blades perform bounded work under explicit contracts; the runtime enforces capability profiles, authorization, typed failures, snapshots, audit trails, and rollback paths.
@@ -7,8 +22,6 @@ Octopus Exoskeleton is a Windows-focused Rust execution layer that separates mod
 It is not a formal safety proof and cannot control actions performed outside its boundary. For operations routed through Octopus, its controls are designed to limit unauthorized, irreversible, or untracked side effects.
 
 Local blades can avoid additional model calls, and independent arms can execute concurrently. End-to-end latency and token use remain workload-dependent; the Bio benchmark measures the process/policy boundary rather than claiming a universal speedup.
-
-> **AI decides within policy. Blades execute within contracts. The Exoskeleton enforces the boundary.**
 
 ## Runtime model
 
