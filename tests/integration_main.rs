@@ -50,6 +50,25 @@ fn run<S: AsRef<std::ffi::OsStr>>(args: &[S], sd: &PathBuf) -> (i32, String, Str
     (output.status.code().unwrap_or(-1), stdout, stderr)
 }
 
+fn run_with_guard<S: AsRef<std::ffi::OsStr>>(
+    args: &[S],
+    sd: &PathBuf,
+    guard: &Path,
+) -> (i32, String, String) {
+    let output = Command::new(binary())
+        .args(args)
+        .env("OCTOPUS_STATE_DIR", sd)
+        .env("OCTOPUS_ALLOWED_ROOTS", sd)
+        .env("OCTOPUS_ENDURANCE_GUARD", guard)
+        .output()
+        .expect("binary");
+    (
+        output.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&output.stdout).to_string(),
+        String::from_utf8_lossy(&output.stderr).to_string(),
+    )
+}
+
 fn receipt_field(output: &str, label: &str) -> String {
     let prefix = format!("{label}: ");
     output
@@ -425,7 +444,13 @@ fn bio_crispr_cli_requires_permission_then_commits_the_confirmed_bytes() {
 
     let mut apply_args = denied_args;
     apply_args.push("--allow-write".to_string());
-    let (code, out, err) = run(&apply_args, &sd);
+    let guard = sd.join("test-endurance-guard.ps1");
+    std::fs::write(
+        &guard,
+        "param([string]$Command)\nif ($Command -eq 'Guard') { exit 0 }\nexit 2\n",
+    )
+    .unwrap();
+    let (code, out, err) = run_with_guard(&apply_args, &sd, &guard);
     assert_eq!(code, 0, "{err}");
     assert!(out.contains("CRISPR APPLY"), "{out}");
     assert!(out.contains("status: committed"), "{out}");
