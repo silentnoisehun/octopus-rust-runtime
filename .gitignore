@@ -1,0 +1,16 @@
+/target/
+/bio-binaries/target/
+/bio-binaries/NONE
+/lib.patch
+*.exe
+*.pdb
+*.rlib
+*.rmeta
+*.d
+*.o
+*.so
+*.dylib
+*.bak
+*.octopus.bak
+*.octopus.tmp
+.octopus-rust/

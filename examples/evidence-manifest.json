@@ -1,0 +1,41 @@
+{
+  "schema": "octopus.arm-manifest/v1",
+  "objective": "Read the runtime entry point and independently inspect a Rust snippet",
+  "arms": [
+    {
+      "id": "source-reader",
+      "spec": "code-reader",
+      "mission": "Read the declared local source file",
+      "input": "src/lib.rs",
+      "effect": "read",
+      "completion": "The runtime reports a successful bounded local read",
+      "stop_condition": "Stop after the declared file is read once",
+      "allowed_paths": ["."],
+      "evidence": [
+        {
+          "kind": "output_contains",
+          "value": "LOCAL READ"
+        },
+        {
+          "kind": "output_contains",
+          "value": "lib.rs"
+        }
+      ]
+    },
+    {
+      "id": "inline-analysis",
+      "spec": "code-analysis",
+      "mission": "Count functions in the declared inline Rust snippet",
+      "input": "fn alpha() {}",
+      "effect": "read",
+      "completion": "Exactly one function is reported",
+      "stop_condition": "Stop after one static analysis pass",
+      "evidence": [
+        {
+          "kind": "output_contains",
+          "value": "fn=1"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+[package]
+name = "octopus-runtime"
+version = "2.9.0"
+edition = "2021"
+description = "Standalone native Rust blade runtime for Octopus orchestration"
+license = "MIT"
+repository = "https://github.com/silentnoisehun/octopus-rust-runtime"
+homepage = "https://github.com/silentnoisehun/octopus-rust-runtime"
+publish = false
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+chrono = "0.4"
+hex = "0.4"
+image = { version = "0.25", default-features = false, features = ["png"] }
+qrcode = { version = "0.14", features = ["svg"] }
+rand = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls", "multipart"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+
+[profile.test]
+debug = 0
+incremental = false
+
+[profile.test.build-override]
+debug = 0
+incremental = false
