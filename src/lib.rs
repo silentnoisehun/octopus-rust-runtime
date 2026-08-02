@@ -2,8 +2,8 @@ pub mod approval;
 pub mod arm_manifest;
 pub mod bio;
 mod bio_actuator;
-pub mod bio_system;
 pub mod bio_benchmark;
+pub mod bio_system;
 #[allow(clippy::all)]
 mod blade;
 mod capability;
@@ -23,13 +23,13 @@ mod snapshot;
 mod state_lock;
 mod state_path;
 
+pub use bio_benchmark::{run_benchmarks, BenchmarkConfig};
 pub use capability::{
     CapabilityExecutionClass, CapabilityInfo, CapabilityMode, CapabilityProfile, CapabilityStatus,
     VerificationGrade,
 };
 pub use contract::CapabilityContract;
 pub use outcome::{ExecutionOutcome, ExecutionStatus};
-pub use bio_benchmark::{run_benchmarks, BenchmarkConfig};
 
 pub fn marshal_plan(task: &str) -> ExecutionOutcome {
     marshal::plan_outcome(task)

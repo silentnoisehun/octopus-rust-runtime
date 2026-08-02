@@ -30,39 +30,204 @@ struct ModuleSpec {
 }
 
 const MODULES: &[ModuleSpec] = &[
-    ModuleSpec { name: "viral-infect", effect: "write", args: &["payload"], requires_mutation: true },
-    ModuleSpec { name: "hox-diff", effect: "read", args: &["fn main() {}"], requires_mutation: false },
-    ModuleSpec { name: "plasmid-dream", effect: "control", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "plasmid-inject", effect: "write", args: &["target.txt", "replacement.txt"], requires_mutation: true },
-    ModuleSpec { name: "telepathy-sync", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "telepathy-entangle", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "eqm-pulse", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "eqm-methy", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "aether-excite", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "aether-fabric", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "borg-cube", effect: "control", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "nexus-logic", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "collective-sync", effect: "control", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "brain-synapse", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "brain-connectome", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "wave-encoder", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "wave-sculptor", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "iron-resonate", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "path-resonance", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "grid-warp", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "magneto-geo", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "mycelium-spread", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "homeostasis", effect: "control", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "omega-master", effect: "control", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "omega-point", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "ribosome-synth", effect: "control", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "wave-cryo-tx", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "wave-cryo-rx", effect: "read", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "mutation-sentinel", effect: "control", args: &["test"], requires_mutation: false },
-    ModuleSpec { name: "magneto-acoustic", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "wave-field", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "vagus-nerve", effect: "write", args: &["test"], requires_mutation: true },
-    ModuleSpec { name: "microscope-mem", effect: "write", args: &["status"], requires_mutation: false },
+    ModuleSpec {
+        name: "viral-infect",
+        effect: "write",
+        args: &["payload"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "hox-diff",
+        effect: "read",
+        args: &["fn main() {}"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "plasmid-dream",
+        effect: "control",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "plasmid-inject",
+        effect: "write",
+        args: &["target.txt", "replacement.txt"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "telepathy-sync",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "telepathy-entangle",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "eqm-pulse",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "eqm-methy",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "aether-excite",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "aether-fabric",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "borg-cube",
+        effect: "control",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "nexus-logic",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "collective-sync",
+        effect: "control",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "brain-synapse",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "brain-connectome",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "wave-encoder",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "wave-sculptor",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "iron-resonate",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "path-resonance",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "grid-warp",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "magneto-geo",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "mycelium-spread",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "homeostasis",
+        effect: "control",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "omega-master",
+        effect: "control",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "omega-point",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "ribosome-synth",
+        effect: "control",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "wave-cryo-tx",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "wave-cryo-rx",
+        effect: "read",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "mutation-sentinel",
+        effect: "control",
+        args: &["test"],
+        requires_mutation: false,
+    },
+    ModuleSpec {
+        name: "magneto-acoustic",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "wave-field",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "vagus-nerve",
+        effect: "write",
+        args: &["test"],
+        requires_mutation: true,
+    },
+    ModuleSpec {
+        name: "microscope-mem",
+        effect: "write",
+        args: &["status"],
+        requires_mutation: false,
+    },
 ];
 
 #[derive(Debug, Clone)]
@@ -138,8 +303,30 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
 
         // Warmup runs
         for w in 0..cfg.warmup {
-            let _ = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "direct", sample: w, timeout_secs: cfg.timeout_secs, keep_raw: false });
-            let _ = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "octopus", sample: w, timeout_secs: cfg.timeout_secs, keep_raw: false });
+            let _ = run_one(
+                &octopus_bin,
+                &bio_bin_dir,
+                RunParams {
+                    spec,
+                    base: &base,
+                    mode: "direct",
+                    sample: w,
+                    timeout_secs: cfg.timeout_secs,
+                    keep_raw: false,
+                },
+            );
+            let _ = run_one(
+                &octopus_bin,
+                &bio_bin_dir,
+                RunParams {
+                    spec,
+                    base: &base,
+                    mode: "octopus",
+                    sample: w,
+                    timeout_secs: cfg.timeout_secs,
+                    keep_raw: false,
+                },
+            );
         }
 
         // Measured samples (alternating order to reduce systematic bias)
@@ -149,15 +336,67 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
         for s in 0..cfg.samples {
             let direct_first = s % 2 == 0;
             if direct_first {
-                let dr = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "direct", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
-                let or = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "octopus", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
-                if let Some(r) = dr { direct_samples.push(r); }
-                if let Some(r) = or { octopus_samples.push(r); }
+                let dr = run_one(
+                    &octopus_bin,
+                    &bio_bin_dir,
+                    RunParams {
+                        spec,
+                        base: &base,
+                        mode: "direct",
+                        sample: s,
+                        timeout_secs: cfg.timeout_secs,
+                        keep_raw: cfg.keep_raw,
+                    },
+                );
+                let or = run_one(
+                    &octopus_bin,
+                    &bio_bin_dir,
+                    RunParams {
+                        spec,
+                        base: &base,
+                        mode: "octopus",
+                        sample: s,
+                        timeout_secs: cfg.timeout_secs,
+                        keep_raw: cfg.keep_raw,
+                    },
+                );
+                if let Some(r) = dr {
+                    direct_samples.push(r);
+                }
+                if let Some(r) = or {
+                    octopus_samples.push(r);
+                }
             } else {
-                let or = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "octopus", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
-                let dr = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "direct", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
-                if let Some(r) = dr { direct_samples.push(r); }
-                if let Some(r) = or { octopus_samples.push(r); }
+                let or = run_one(
+                    &octopus_bin,
+                    &bio_bin_dir,
+                    RunParams {
+                        spec,
+                        base: &base,
+                        mode: "octopus",
+                        sample: s,
+                        timeout_secs: cfg.timeout_secs,
+                        keep_raw: cfg.keep_raw,
+                    },
+                );
+                let dr = run_one(
+                    &octopus_bin,
+                    &bio_bin_dir,
+                    RunParams {
+                        spec,
+                        base: &base,
+                        mode: "direct",
+                        sample: s,
+                        timeout_secs: cfg.timeout_secs,
+                        keep_raw: cfg.keep_raw,
+                    },
+                );
+                if let Some(r) = dr {
+                    direct_samples.push(r);
+                }
+                if let Some(r) = or {
+                    octopus_samples.push(r);
+                }
             }
         }
 
@@ -175,7 +414,13 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
         }
 
         // Compute summary BEFORE moving
-        let summary = compute_summary(spec.name, spec.effect, module_pass, &direct_samples, &octopus_samples);
+        let summary = compute_summary(
+            spec.name,
+            spec.effect,
+            module_pass,
+            &direct_samples,
+            &octopus_samples,
+        );
 
         // Save per-module samples BEFORE moving
         save_module_samples(&base, spec.name, &direct_samples, &octopus_samples);
@@ -192,7 +437,15 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
 
     write_samples_csv(&samples_csv, &all_results).expect("write samples csv");
     write_summary_csv(&summary_csv, &all_results).expect("write summary csv");
-    write_markdown_report(&report_md, &base, &all_results, &failed_modules, timestamp, &cfg).expect("write markdown");
+    write_markdown_report(
+        &report_md,
+        &base,
+        &all_results,
+        &failed_modules,
+        timestamp,
+        &cfg,
+    )
+    .expect("write markdown");
 
     let passed = MODULES.len() - failed_modules.len();
     let outcome_msg = format!(
@@ -207,7 +460,11 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
     } else {
         crate::outcome::ExecutionOutcome::failed(
             "benchmark_modules_failed",
-            format!("{} modules failed: {}", failed_modules.len(), failed_modules.join(", ")),
+            format!(
+                "{} modules failed: {}",
+                failed_modules.len(),
+                failed_modules.join(", ")
+            ),
         )
     }
 }
@@ -264,10 +521,22 @@ fn run_one(octopus_bin: &Path, bio_bin_dir: &Path, p: RunParams<'_>) -> Option<R
                 eprintln!("  [skip] {} not found at {}", p.spec.name, bin.display());
                 return None;
             }
-            (bin, p.spec.args.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            (
+                bin,
+                p.spec
+                    .args
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
+            )
         }
         "octopus" => {
-            let mut a = vec!["bio".to_string(), "external".to_string(), p.spec.name.to_string(), "--allow-mutation".to_string()];
+            let mut a = vec![
+                "bio".to_string(),
+                "external".to_string(),
+                p.spec.name.to_string(),
+                "--allow-mutation".to_string(),
+            ];
             a.extend(p.spec.args.iter().map(|s| s.to_string()));
             (octopus_bin.to_path_buf(), a)
         }
@@ -299,13 +568,7 @@ fn run_one(octopus_bin: &Path, bio_bin_dir: &Path, p: RunParams<'_>) -> Option<R
             0,
             0,
         ),
-        Err(e) => (
-            false,
-            String::new(),
-            format!("failed to spawn: {e}"),
-            0,
-            0,
-        ),
+        Err(e) => (false, String::new(), format!("failed to spawn: {e}"), 0, 0),
     };
 
     // Save raw output if requested or on failure
@@ -344,14 +607,24 @@ fn compute_summary(
     direct: &[RunResult],
     octopus: &[RunResult],
 ) -> ModuleSummary {
-    let mut d_times: Vec<u128> = direct.iter().filter(|r| r.success).map(|r| r.wall_ms).collect();
-    let mut o_times: Vec<u128> = octopus.iter().filter(|r| r.success).map(|r| r.wall_ms).collect();
+    let mut d_times: Vec<u128> = direct
+        .iter()
+        .filter(|r| r.success)
+        .map(|r| r.wall_ms)
+        .collect();
+    let mut o_times: Vec<u128> = octopus
+        .iter()
+        .filter(|r| r.success)
+        .map(|r| r.wall_ms)
+        .collect();
 
     d_times.sort();
     o_times.sort();
 
     let percentile = |v: &[u128], p: f64| -> u128 {
-        if v.is_empty() { return 0; }
+        if v.is_empty() {
+            return 0;
+        }
         let idx = ((v.len() as f64 - 1.0) * p).round() as usize;
         v[idx.min(v.len() - 1)]
     };
@@ -442,7 +715,15 @@ fn save_module_samples(base: &Path, module: &str, direct: &[RunResult], octopus:
 fn write_samples_csv(path: &Path, results: &[RunResult]) -> std::io::Result<()> {
     let mut w = csv::Writer::from_path(path)?;
     w.write_record([
-        "module", "mode", "sample", "success", "wall_ms", "cpu_ms", "peak_rss_kb", "stdout", "stderr"
+        "module",
+        "mode",
+        "sample",
+        "success",
+        "wall_ms",
+        "cpu_ms",
+        "peak_rss_kb",
+        "stdout",
+        "stderr",
     ])?;
     for r in results {
         w.write_record([
@@ -478,19 +759,32 @@ fn write_summary_csv(path: &Path, results: &[RunResult]) -> std::io::Result<()> 
 
     let mut w = csv::Writer::from_path(path)?;
     w.write_record([
-        "module", "effect", "pass",
-        "direct_median", "direct_p95", "direct_min", "direct_max",
-        "octopus_median", "octopus_p95", "octopus_min", "octopus_max",
-        "adapter_overhead_median", "ratio"
+        "module",
+        "effect",
+        "pass",
+        "direct_median",
+        "direct_p95",
+        "direct_min",
+        "direct_max",
+        "octopus_median",
+        "octopus_p95",
+        "octopus_min",
+        "octopus_max",
+        "adapter_overhead_median",
+        "ratio",
     ])?;
 
     for spec in MODULES {
         let (direct, octopus) = by_module.get(spec.name).cloned().unwrap_or_default();
-        let mut d = direct.clone(); d.sort();
-        let mut o = octopus.clone(); o.sort();
+        let mut d = direct.clone();
+        d.sort();
+        let mut o = octopus.clone();
+        o.sort();
 
         let percentile = |v: &[u128], p: f64| -> u128 {
-            if v.is_empty() { return 0; }
+            if v.is_empty() {
+                return 0;
+            }
             let idx = ((v.len() as f64 - 1.0) * p).round() as usize;
             v[idx.min(v.len() - 1)]
         };
@@ -503,8 +797,16 @@ fn write_summary_csv(path: &Path, results: &[RunResult]) -> std::io::Result<()> 
         let octopus_p95 = percentile(&o, 0.95);
         let octopus_min = o.first().copied().unwrap_or(0);
         let octopus_max = o.last().copied().unwrap_or(0);
-        let adapter = if direct_median > 0 && octopus_median > direct_median { octopus_median - direct_median } else { 0 };
-        let ratio = if direct_median > 0 { octopus_median as f64 / direct_median as f64 } else { 0.0 };
+        let adapter = if direct_median > 0 && octopus_median > direct_median {
+            octopus_median - direct_median
+        } else {
+            0
+        };
+        let ratio = if direct_median > 0 {
+            octopus_median as f64 / direct_median as f64
+        } else {
+            0.0
+        };
         let pass = !direct.is_empty() && !octopus.is_empty();
 
         w.write_record([
@@ -535,27 +837,54 @@ fn write_markdown_report(
     timestamp: u128,
     cfg: &BenchmarkConfig,
 ) -> std::io::Result<()> {
-    use std::fs;
     use std::collections::HashMap;
+    use std::fs;
 
     let mut by_module: HashMap<String, (Vec<u128>, Vec<u128>)> = HashMap::new();
     for r in results {
         if r.success {
             let entry = by_module.entry(r.module.clone()).or_default();
-            if r.mode == "direct" { entry.0.push(r.wall_ms); } else { entry.1.push(r.wall_ms); }
+            if r.mode == "direct" {
+                entry.0.push(r.wall_ms);
+            } else {
+                entry.1.push(r.wall_ms);
+            }
         }
     }
 
     let mut md = String::new();
     md.push_str("# Octopus Bio-Binaries benchmark\n\n");
     md.push_str(&format!("- Run: `{timestamp}`\n"));
-    md.push_str(&format!("- Host: `{}` / `{}`\n", whoami::fallible::hostname().unwrap_or_else(|_| "unknown".into()), std::env::consts::OS));
-    md.push_str(&format!("- Octopus: `{}`\n", find_octopus_binary().display()));
-    md.push_str(&format!("- Bio directory: `{}`\n", find_bio_binary_dir().display()));
-    md.push_str(&format!("- Protocol: {} warmup + {} measured samples per mode, alternating direct/Octopus order\n", cfg.warmup, cfg.samples));
-    md.push_str(&format!("- Timeout: {} seconds per process\n", cfg.timeout_secs));
-    md.push_str(&format!("- Result: {}/{} modules passed\n", MODULES.len() - failed.len(), MODULES.len()));
-    md.push_str(&format!("- Evidence class: diagnostic smoke; {} measured runs per module per mode\n\n", cfg.samples));
+    md.push_str(&format!(
+        "- Host: `{}` / `{}`\n",
+        whoami::fallible::hostname().unwrap_or_else(|_| "unknown".into()),
+        std::env::consts::OS
+    ));
+    md.push_str(&format!(
+        "- Octopus: `{}`\n",
+        find_octopus_binary().display()
+    ));
+    md.push_str(&format!(
+        "- Bio directory: `{}`\n",
+        find_bio_binary_dir().display()
+    ));
+    md.push_str(&format!(
+        "- Protocol: {} warmup + {} measured samples per mode, alternating direct/Octopus order\n",
+        cfg.warmup, cfg.samples
+    ));
+    md.push_str(&format!(
+        "- Timeout: {} seconds per process\n",
+        cfg.timeout_secs
+    ));
+    md.push_str(&format!(
+        "- Result: {}/{} modules passed\n",
+        MODULES.len() - failed.len(),
+        MODULES.len()
+    ));
+    md.push_str(&format!(
+        "- Evidence class: diagnostic smoke; {} measured runs per module per mode\n\n",
+        cfg.samples
+    ));
     md.push_str("Pass/fail is functional: every warmup and measured process must exit 0, required artifacts must validate, and every Octopus run must emit its native adapter evidence marker. Latency has no arbitrary pass threshold.\n");
     md.push_str("This harness measures small-fixture end-to-end process latency. It does not establish large-fixture algorithm throughput.\n\n");
 
@@ -564,15 +893,23 @@ fn write_markdown_report(
     md.push_str("|---|---:|:---:|---:|---:|---:|---:|\n");
 
     let percentile = |v: &mut [u128], p: f64| -> u128 {
-        if v.is_empty() { return 0; }
+        if v.is_empty() {
+            return 0;
+        }
         v.sort();
         let idx = ((v.len() as f64 - 1.0) * p).round() as usize;
         v[idx.min(v.len() - 1)]
     };
 
     for spec in MODULES {
-        let mut d = by_module.get(spec.name).map(|(d, _)| d.clone()).unwrap_or_default();
-        let mut o = by_module.get(spec.name).map(|(_, o)| o.clone()).unwrap_or_default();
+        let mut d = by_module
+            .get(spec.name)
+            .map(|(d, _)| d.clone())
+            .unwrap_or_default();
+        let mut o = by_module
+            .get(spec.name)
+            .map(|(_, o)| o.clone())
+            .unwrap_or_default();
 
         let direct_median = percentile(&mut d, 0.5);
         let direct_p95 = percentile(&mut d, 0.95);
@@ -582,16 +919,33 @@ fn write_markdown_report(
         let octopus_p95 = percentile(&mut o, 0.95);
         let octopus_min = o.first().copied().unwrap_or(0);
         let octopus_max = o.last().copied().unwrap_or(0);
-        let adapter = if direct_median > 0 && octopus_median > direct_median { octopus_median - direct_median } else { 0 };
-        let ratio = if direct_median > 0 { octopus_median as f64 / direct_median as f64 } else { 0.0 };
+        let adapter = if direct_median > 0 && octopus_median > direct_median {
+            octopus_median - direct_median
+        } else {
+            0
+        };
+        let ratio = if direct_median > 0 {
+            octopus_median as f64 / direct_median as f64
+        } else {
+            0.0
+        };
         let pass = !d.is_empty() && !o.is_empty();
 
         md.push_str(&format!(
             "| {} | {} | {} | {} / {} / {} / {} | {} / {} / {} / {} | {} ms | {:.2}× |\n",
-            spec.name, spec.effect, if pass { "yes" } else { "no" },
-            direct_median, direct_p95, direct_min, direct_max,
-            octopus_median, octopus_p95, octopus_min, octopus_max,
-            adapter, ratio
+            spec.name,
+            spec.effect,
+            if pass { "yes" } else { "no" },
+            direct_median,
+            direct_p95,
+            direct_min,
+            direct_max,
+            octopus_median,
+            octopus_p95,
+            octopus_min,
+            octopus_max,
+            adapter,
+            ratio
         ));
     }
 
@@ -610,7 +964,9 @@ fn write_markdown_report(
 
     md.push_str("## Files\n\n");
     md.push_str("- `bio-benchmark-samples.csv`: one measured process per row\n");
-    md.push_str("- `bio-benchmark-summary.csv`: per-module latency and launched-PID resource summary\n");
+    md.push_str(
+        "- `bio-benchmark-summary.csv`: per-module latency and launched-PID resource summary\n",
+    );
     md.push_str("- `bio-benchmark-environment.txt`: machine and exact executable identity\n");
     md.push_str("- `raw/`: failure output, or every output with `-KeepRawOutput`\n");
 

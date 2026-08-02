@@ -197,13 +197,13 @@ impl ArmSnapshot {
         let result = self.try_append_status(
             outcome.status.as_str(),
             outcome.code.as_deref(),
-        &outcome.output,
-    );
-    if result.is_ok() {
-        self.completed = true;
+            &outcome.output,
+        );
+        if result.is_ok() {
+            self.completed = true;
+        }
+        result
     }
-    result
-}
 
     fn try_append_status(
         &self,

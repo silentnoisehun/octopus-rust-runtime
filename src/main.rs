@@ -485,7 +485,12 @@ fn main() {
         Command::Cancel { root_id } => {
             print_outcome(octopus_runtime::orch_cancel(&root_id));
         }
-        Command::Benchmark { warmup, samples, timeout, keep_raw } => {
+        Command::Benchmark {
+            warmup,
+            samples,
+            timeout,
+            keep_raw,
+        } => {
             let cfg = octopus_runtime::bio_benchmark::BenchmarkConfig {
                 warmup,
                 samples,
