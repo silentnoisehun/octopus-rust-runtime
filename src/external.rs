@@ -148,7 +148,7 @@ pub fn redact_tokens(text: &str) -> String {
     let token_patterns = [
         "ghp_", "gho_", "ghu_", "ghs_", "ghr_", "sk-", "Bearer ", "token=",
     ];
-        for pattern in &token_patterns {
+    for pattern in &token_patterns {
         let mut search_from = 0;
         while let Some(idx) = result[search_from..].find(pattern) {
             let idx = search_from + idx;
@@ -239,8 +239,17 @@ mod tests {
     fn redact_tokens_masks_multiple_occurrences_of_same_pattern() {
         let text = "ghp_aaa111 and ghp_bbb222";
         let redacted = redact_tokens(text);
-        assert!(!redacted.contains("aaa111"), "first token should be masked: {redacted}");
-        assert!(!redacted.contains("bbb222"), "second token should be masked: {redacted}");
-        assert!(redacted.contains("ghp_"), "prefix should remain: {redacted}");
+        assert!(
+            !redacted.contains("aaa111"),
+            "first token should be masked: {redacted}"
+        );
+        assert!(
+            !redacted.contains("bbb222"),
+            "second token should be masked: {redacted}"
+        );
+        assert!(
+            redacted.contains("ghp_"),
+            "prefix should remain: {redacted}"
+        );
     }
 }
