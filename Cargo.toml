@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 chrono = "0.4"
+dirs = "6"
 hex = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 qrcode = { version = "0.14", features = ["svg"] }
