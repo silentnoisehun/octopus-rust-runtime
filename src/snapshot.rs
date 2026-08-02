@@ -197,23 +197,13 @@ impl ArmSnapshot {
         let result = self.try_append_status(
             outcome.status.as_str(),
             outcome.code.as_deref(),
-            &outcome.output,
-        );
-        if result.is_ok() {
-            self.completed = true;
-        }
-        result
+        &outcome.output,
+    );
+    if result.is_ok() {
+        self.completed = true;
     }
-
-    /// Legacy compatibility wrapper. Panics on I/O error.
-    #[deprecated(
-        since = "0.1.0",
-        note = "use try_finish instead; this panics on I/O error"
-    )]
-    pub fn finish(&mut self, outcome: &ExecutionOutcome) {
-        self.try_finish(outcome)
-            .unwrap_or_else(|e| panic!("snapshot finish failed: {e}"));
-    }
+    result
+}
 
     fn try_append_status(
         &self,

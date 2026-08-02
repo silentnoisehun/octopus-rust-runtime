@@ -17,6 +17,11 @@
 - Removed the last two machine-specific default paths in the binary
   (`state_path.rs` state root and `maintenance.rs` backup root), so the runtime
   resolves a sane state location on other machines without environment variables
+- Resolved every `cargo clippy --all-targets -- -D warnings` finding: removed
+  the deprecated unused `ArmSnapshot::finish` wrapper, grouped the benchmark
+  runner parameters into `RunParams`, dropped needless borrows and a useless
+  `format!`, returned the redacted outcome directly, and surfaced the computed
+  min/max/effect fields in the module summary output
 
 ### Tests
 - Octopus: 361 passing tests (315 unit + 46 integration)
