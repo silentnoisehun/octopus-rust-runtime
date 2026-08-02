@@ -54,6 +54,25 @@ The binary lands at `target/release/octopus-runtime.exe`.
 `path|expected_sha256_or_NEW|content`. Stdin content is byte-preserving,
 including multiline text, trailing spaces, and the final newline.
 
+### State Directory
+
+Runtime state (roots, arms, event log, backups and the resonance chain) lives
+under a portable, machine-independent default: the OS data-local directory
+joined with `octopus-rust-runtime/.octopus-rust` (Windows `%LOCALAPPDATA%`,
+Linux `$XDG_DATA_HOME` or `~/.local/share`, macOS
+`~/Library/Application Support`), falling back to the current directory. There
+is no hardcoded per-developer path in the binary.
+
+```powershell
+$env:OCTOPUS_STATE_DIR = "D:\codex\.octopus-rust"  # pin an existing workspace root
+octopus-runtime pipeline "summarize || code-analysis" "probe"
+```
+
+`OCTOPUS_STATE_DIR` may be absolute or relative (relative paths resolve against
+the current directory). Backups default to the `.octopus-rust-backups` sidecar
+of the state directory and can be pinned separately with
+`OCTOPUS_STATE_BACKUP_DIR`.
+
 ### Your First Pipeline
 
 ```powershell
@@ -290,7 +309,7 @@ Every change must pass these, in order:
 ```powershell
 cargo fmt --check                        # Formatting
 cargo clippy --locked --all-targets -- -D warnings  # Zero warnings
-cargo test --locked                      # All Octopus tests green (357 currently)
+cargo test --locked                      # All Octopus tests green (361 currently)
 cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 62 Bio tests
 cargo build --release --locked           # Release binary
 ```
@@ -313,7 +332,7 @@ octopus-runtime pipeline "summarize || code-analysis" "probe"
 
 | Metric | Value |
 |--------|-------|
-| Octopus tests | 357 (312 unit + 45 integration), 0 failed |
+| Octopus tests | 361 (315 unit + 46 integration), 0 failed |
 | Bio-Binaries tests | 62, 0 failed |
 | Runtime Clippy | clean, `--all-targets -- -D warnings` (Rust stable); CI actions are commit-pinned |
 | Test hygiene | duplicate test attributes removed; every reported test is unique |
@@ -327,6 +346,7 @@ octopus-runtime pipeline "summarize || code-analysis" "probe"
 ## Known limitations
 
 - Windows 64-bit is the tested platform; Linux is untested and macOS-only blades return typed `Unsupported` outcomes.
+- Macrophage, synaptic, and CRISPR apply operations require `OCTOPUS_ENDURANCE_GUARD` to name the external lease-guard PowerShell script; there is no machine-specific fallback.
 - The controls apply only to operations routed through Octopus and have not undergone a formal verification or independent security audit.
 - Bio `microscope-mem` persistence delegation, successful multi-peer `collective-sync`, and live audio-device RX remain incomplete.
 - BioMessage keyed authentication exists, but JOIN admission/session enforcement is incomplete; do not expose `omega-master` to untrusted networks.

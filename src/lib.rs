@@ -223,7 +223,12 @@ fn execute_blade_under_root(
     let outcome = match snapshot_result {
         Ok(mut snap) => {
             let outcome = execute_component(blade_name, prompt);
-            snap.finish(&outcome);
+            if let Err(error) = snap.try_finish(&outcome) {
+                return ExecutionOutcome::failed(
+                    "snapshot_finish_failed",
+                    format!("[{blade_name}] snapshot finish failed: {error}"),
+                );
+            }
             outcome
         }
         Err(error) => {
@@ -327,7 +332,12 @@ fn execute_arm_under_root_gated(
         if let Some(arm) = manifest_arm {
             outcome = arm_manifest::enforce_evidence(arm, outcome);
         }
-        snap.finish(&outcome);
+        if let Err(error) = snap.try_finish(&outcome) {
+            return ExecutionOutcome::failed(
+                "snapshot_finish_failed",
+                format!("[{spec}] snapshot finish failed: {error}"),
+            );
+        }
     }
     outcome
 }

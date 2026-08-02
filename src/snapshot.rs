@@ -175,13 +175,6 @@ impl ArmSnapshot {
         })
     }
 
-    /// Legacy compatibility wrapper. Prefer `try_start`.
-    /// PANICS on I/O error — only use in contexts where unwritable state dir is impossible.
-    #[allow(dead_code)]
-    pub fn start(name: &str, prompt: &str, parent: Option<&str>) -> Self {
-        Self::try_start(name, prompt, parent).expect("snapshot start failed")
-    }
-
     /// Return the snapshot ID
     #[allow(dead_code)]
     pub fn id(&self) -> &str {
@@ -190,6 +183,17 @@ impl ArmSnapshot {
 
     /// Finish the snapshot. Returns Ok(()) on success, Err on I/O failure.
     pub fn try_finish(&mut self, outcome: &ExecutionOutcome) -> Result<(), SnapshotError> {
+        // Debug-only fault injection exercises post-execution write failures through public paths.
+        #[cfg(debug_assertions)]
+        if std::env::var_os("OCTOPUS_TEST_FAIL_SNAPSHOT_FINISH").as_deref()
+            == Some(std::ffi::OsStr::new("permission-denied"))
+        {
+            return Err(std::io::Error::new(
+                ErrorKind::PermissionDenied,
+                "injected snapshot finish write failure",
+            )
+            .into());
+        }
         let result = self.try_append_status(
             outcome.status.as_str(),
             outcome.code.as_deref(),
@@ -199,12 +203,6 @@ impl ArmSnapshot {
             self.completed = true;
         }
         result
-    }
-
-    /// Legacy compatibility wrapper. Panics on I/O error.
-    pub fn finish(&mut self, outcome: &ExecutionOutcome) {
-        self.try_finish(outcome)
-            .unwrap_or_else(|e| panic!("snapshot finish failed: {e}"));
     }
 
     fn try_append_status(

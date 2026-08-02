@@ -80,10 +80,18 @@ fn confirmation(prefix: &str, payload: &str) -> String {
 }
 
 fn run_endurance_guard() -> Result<(), String> {
-    let configured = env::var_os("OCTOPUS_ENDURANCE_GUARD")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(r"D:\codex\octopus-runtime-ui\manage-endurance-soak.ps1"));
+    let configured = configured_endurance_guard(env::var_os("OCTOPUS_ENDURANCE_GUARD"))?;
     run_endurance_guard_at(&configured)
+}
+
+fn configured_endurance_guard(configured: Option<std::ffi::OsString>) -> Result<PathBuf, String> {
+    configured
+        .map(PathBuf::from)
+        .filter(|path| !path.as_os_str().is_empty())
+        .ok_or_else(|| {
+            "set OCTOPUS_ENDURANCE_GUARD env var to the endurance guard PowerShell script"
+                .to_string()
+        })
 }
 
 fn run_endurance_guard_at(configured: &Path) -> Result<(), String> {
@@ -1130,5 +1138,18 @@ mod tests {
         let root = fixture("missing-guard");
         let error = run_endurance_guard_at(&root.join("missing.ps1")).unwrap_err();
         assert!(error.contains("endurance guard is missing"), "{error}");
+    }
+
+    #[test]
+    fn endurance_guard_requires_explicit_configuration() {
+        assert_eq!(
+            configured_endurance_guard(None).unwrap_err(),
+            "set OCTOPUS_ENDURANCE_GUARD env var to the endurance guard PowerShell script"
+        );
+        assert!(configured_endurance_guard(Some("".into())).is_err());
+        assert_eq!(
+            configured_endurance_guard(Some("guard.ps1".into())).unwrap(),
+            PathBuf::from("guard.ps1")
+        );
     }
 }
