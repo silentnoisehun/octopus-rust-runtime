@@ -2,6 +2,10 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Read, Write};
 
+// Maximum message length to prevent unbounded memory allocation from malicious Content-Length
+const MAX_MESSAGE_LEN: usize = 16 * 1024 * 1024; // 16 MiB
+
+
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
     #[serde(default)]
@@ -333,6 +337,13 @@ fn read_message<R: BufRead + Read>(reader: &mut R) -> io::Result<Option<Incoming
             "Missing Content-Length header in framed MCP message",
         )
     })?;
+
+    if len > MAX_MESSAGE_LEN {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Content-Length {} exceeds maximum allowed {}", len, MAX_MESSAGE_LEN),
+        ));
+    }
 
     let mut body = vec![0u8; len];
     reader.read_exact(&mut body)?;
