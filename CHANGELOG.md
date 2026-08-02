@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- The production default state directory is now portable: the OS data-local
+  directory joined with `octopus-rust-runtime/.octopus-rust` (Windows
+  `%LOCALAPPDATA%`, Linux `$XDG_DATA_HOME` or `~/.local/share`, macOS
+  `~/Library/Application Support`) instead of a hardcoded `D:\codex\.octopus-rust`
+  path; `OCTOPUS_STATE_DIR` still overrides it
+- The default backup root is derived from the state directory as the
+  `.octopus-rust-backups` sibling instead of a hardcoded machine path;
+  `OCTOPUS_STATE_BACKUP_DIR` still overrides it, and an empty override now
+  falls back to the derived default
+
+### Fixed
+- Removed the last two machine-specific default paths in the binary
+  (`state_path.rs` state root and `maintenance.rs` backup root), so the runtime
+  resolves a sane state location on other machines without environment variables
+
+### Tests
+- Octopus: 361 passing tests (315 unit + 46 integration)
+- Production default portability regression tests: the default never embeds a
+  machine-specific path, resolves to an absolute OS-conventional location, and
+  the backup root stays a derived sibling of the state directory
+
 ## v2.9.0 — 2026-08-01
 
 ### Added
