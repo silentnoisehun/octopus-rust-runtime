@@ -26,7 +26,7 @@ whoami = "1.4"
 
 # Microscope Memory enforcement module: the commitment gate the Octopus
 # native runtime consults before invoking any blade.
-microscope-memory = { git = "https://github.com/silentnoisehun/microscope-memory.git", rev = "ea96d06b717f5bfdc0ac1f6833c3930d6096f700", default-features = false, features = ["native"] }
+microscope-memory = { git = "https://github.com/silentnoisehun/microscope-memory.git", rev = "2b7085ec7b961820c68ca244857f162700db8907", default-features = false, features = ["native"] }
 
 [dev-dependencies]
 tempfile = "3"

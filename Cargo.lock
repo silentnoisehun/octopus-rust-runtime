@@ -1006,7 +1006,7 @@ dependencies = [
 [[package]]
 name = "microscope-hooks"
 version = "0.1.0"
-source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=ea96d06b717f5bfdc0ac1f6833c3930d6096f700#ea96d06b717f5bfdc0ac1f6833c3930d6096f700"
+source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=2b7085ec7b961820c68ca244857f162700db8907#2b7085ec7b961820c68ca244857f162700db8907"
 dependencies = [
  "chrono",
  "serde",
@@ -1019,7 +1019,7 @@ dependencies = [
 [[package]]
 name = "microscope-memory"
 version = "0.8.2"
-source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=ea96d06b717f5bfdc0ac1f6833c3930d6096f700#ea96d06b717f5bfdc0ac1f6833c3930d6096f700"
+source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=2b7085ec7b961820c68ca244857f162700db8907#2b7085ec7b961820c68ca244857f162700db8907"
 dependencies = [
  "axum",
  "bincode",
