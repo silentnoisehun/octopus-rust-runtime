@@ -234,9 +234,21 @@ pub fn recover_interrupted_restore() -> Result<RestoreRecoveryReport, String> {
 }
 
 fn backup_base() -> PathBuf {
-    env::var_os("OCTOPUS_STATE_BACKUP_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(r"D:\codex\.octopus-rust-backups"))
+    match env::var_os("OCTOPUS_STATE_BACKUP_DIR") {
+        Some(configured) if !configured.is_empty() => PathBuf::from(configured),
+        _ => default_backup_base(&state_dir()),
+    }
+}
+
+fn default_backup_base(state: &Path) -> PathBuf {
+    let parent = state.parent().unwrap_or_else(|| Path::new("."));
+    let name = state
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(|value| value.trim_start_matches('.'))
+        .filter(|value| !value.is_empty())
+        .unwrap_or("state");
+    parent.join(format!(".{name}-backups"))
 }
 
 fn require_restorable_backup(report: &BackupVerificationReport) -> Result<(), String> {
@@ -1414,6 +1426,36 @@ mod tests {
             .and_then(|value| value.to_str())
             .unwrap()
             .to_string()
+    }
+
+    struct EnvVarGuard(Option<std::ffi::OsString>);
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match &self.0 {
+                Some(value) => env::set_var("OCTOPUS_STATE_BACKUP_DIR", value),
+                None => env::remove_var("OCTOPUS_STATE_BACKUP_DIR"),
+            }
+        }
+    }
+
+    #[test]
+    fn backup_base_default_is_derived_from_the_state_dir() {
+        let previous = env::var_os("OCTOPUS_STATE_BACKUP_DIR");
+        let _guard = EnvVarGuard(previous);
+        env::remove_var("OCTOPUS_STATE_BACKUP_DIR");
+        let state = state_dir();
+        let name = state
+            .file_name()
+            .and_then(|value| value.to_str())
+            .map(|value| value.trim_start_matches('.'))
+            .expect("state dir has a name");
+        let expected = state
+            .parent()
+            .expect("state dir has a parent")
+            .join(format!(".{name}-backups"));
+        assert_eq!(backup_base(), expected);
+        assert_ne!(backup_base(), state);
     }
 
     #[test]

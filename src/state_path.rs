@@ -39,8 +39,21 @@ pub(crate) fn state_dir() -> PathBuf {
 
     #[cfg(not(test))]
     {
-        PathBuf::from(r"D:\codex\.octopus-rust")
+        default_state_dir()
     }
+}
+
+/// Portable production default: the OS data-local directory (Windows
+/// `%LOCALAPPDATA%`, Linux `$XDG_DATA_HOME` / `~/.local/share`, macOS
+/// `~/Library/Application Support`) joined with the runtime state root,
+/// falling back to the current directory and finally `.`. Never embeds a
+/// machine-specific absolute path.
+fn default_state_dir() -> PathBuf {
+    dirs::data_local_dir()
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("octopus-rust-runtime")
+        .join(".octopus-rust")
 }
 
 pub(crate) fn sidecar_path(root: &Path, suffix: &str) -> Result<PathBuf, String> {
@@ -73,6 +86,27 @@ mod tests {
             assert_ne!(state_dir(), PathBuf::from(r"D:\codex\.octopus-rust"));
             assert!(state_dir().starts_with(env::temp_dir()));
         }
+    }
+
+    #[test]
+    fn production_default_is_portable_and_never_machine_specific() {
+        let default = default_state_dir();
+        assert_ne!(default, PathBuf::from(r"D:\codex\.octopus-rust"));
+        assert!(
+            !default.to_string_lossy().contains(r"D:\codex"),
+            "default must not embed a machine-specific path: {}",
+            default.display()
+        );
+        assert!(
+            default.is_absolute(),
+            "default must resolve to an absolute OS-conventional location: {}",
+            default.display()
+        );
+        assert!(
+            default.ends_with(Path::new("octopus-rust-runtime").join(".octopus-rust")),
+            "default must target the portable runtime state root: {}",
+            default.display()
+        );
     }
 
     #[test]
