@@ -21,6 +21,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 
+# Microscope Memory enforcement module: the commitment gate the Octopus
+# native runtime consults before invoking any blade.
+microscope-memory = { git = "https://github.com/silentnoisehun/microscope-memory.git", rev = "ea96d06b717f5bfdc0ac1f6833c3930d6096f700", default-features = false, features = ["native"] }
+
+[dev-dependencies]
+tempfile = "3"
+
 [profile.release]
 strip = true
 lto = true

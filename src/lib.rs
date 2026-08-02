@@ -8,6 +8,7 @@ mod blade;
 mod capability;
 mod composite;
 pub mod contract;
+pub mod enforcement;
 pub mod external;
 mod maintenance;
 pub mod marshal;
@@ -794,6 +795,27 @@ pub fn orch_orphans() -> ExecutionOutcome {
 }
 
 fn execute_component(spec: &str, prompt: &str) -> ExecutionOutcome {
+    // Fail-closed commitment gate: when active, a blade only reaches the
+    // native executor if the Microscope state says Allow. A Deny or a
+    // load/gate error returns before any blade executor is invoked.
+    if let Some(cfg) = crate::enforcement::EnforcementConfig::from_env() {
+        match crate::enforcement::gate(spec, prompt, &cfg) {
+            Ok(crate::enforcement::Gate::Allow) => {}
+            Ok(crate::enforcement::Gate::Deny(reason)) => {
+                return ExecutionOutcome::failed(
+                    "enforcement_blocked",
+                    format!("[{spec}] refused by commitment gate: {reason}"),
+                );
+            }
+            Err(reason) => {
+                return ExecutionOutcome::failed(
+                    "enforcement_fail_closed",
+                    format!("[{spec}] refused (fail-closed): {reason}"),
+                );
+            }
+        }
+    }
+
     let candidates: Vec<_> = spec
         .split('|')
         .map(str::trim)
