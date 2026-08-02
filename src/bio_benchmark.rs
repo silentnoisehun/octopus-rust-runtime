@@ -138,8 +138,8 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
 
         // Warmup runs
         for w in 0..cfg.warmup {
-            let _ = run_one(&octopus_bin, &bio_bin_dir, spec, &base, "direct", w, cfg.timeout_secs, false);
-            let _ = run_one(&octopus_bin, &bio_bin_dir, spec, &base, "octopus", w, cfg.timeout_secs, false);
+            let _ = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "direct", sample: w, timeout_secs: cfg.timeout_secs, keep_raw: false });
+            let _ = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "octopus", sample: w, timeout_secs: cfg.timeout_secs, keep_raw: false });
         }
 
         // Measured samples (alternating order to reduce systematic bias)
@@ -149,13 +149,13 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
         for s in 0..cfg.samples {
             let direct_first = s % 2 == 0;
             if direct_first {
-                let dr = run_one(&octopus_bin, &bio_bin_dir, spec, &base, "direct", s, cfg.timeout_secs, cfg.keep_raw);
-                let or = run_one(&octopus_bin, &bio_bin_dir, spec, &base, "octopus", s, cfg.timeout_secs, cfg.keep_raw);
+                let dr = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "direct", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
+                let or = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "octopus", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
                 if let Some(r) = dr { direct_samples.push(r); }
                 if let Some(r) = or { octopus_samples.push(r); }
             } else {
-                let or = run_one(&octopus_bin, &bio_bin_dir, spec, &base, "octopus", s, cfg.timeout_secs, cfg.keep_raw);
-                let dr = run_one(&octopus_bin, &bio_bin_dir, spec, &base, "direct", s, cfg.timeout_secs, cfg.keep_raw);
+                let or = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "octopus", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
+                let dr = run_one(&octopus_bin, &bio_bin_dir, RunParams { spec, base: &base, mode: "direct", sample: s, timeout_secs: cfg.timeout_secs, keep_raw: cfg.keep_raw });
                 if let Some(r) = dr { direct_samples.push(r); }
                 if let Some(r) = or { octopus_samples.push(r); }
             }
@@ -247,28 +247,28 @@ fn find_bio_binary_dir() -> PathBuf {
     path
 }
 
-fn run_one(
-    octopus_bin: &Path,
-    bio_bin_dir: &Path,
-    spec: &ModuleSpec,
-    base: &Path,
-    mode: &str,
+struct RunParams<'a> {
+    spec: &'a ModuleSpec,
+    base: &'a Path,
+    mode: &'a str,
     sample: usize,
     timeout_secs: u64,
     keep_raw: bool,
-) -> Option<RunResult> {
-    let (cmd, args) = match mode {
+}
+
+fn run_one(octopus_bin: &Path, bio_bin_dir: &Path, p: RunParams<'_>) -> Option<RunResult> {
+    let (cmd, args) = match p.mode {
         "direct" => {
-            let bin = bio_bin_dir.join(format!("{}.exe", spec.name));
+            let bin = bio_bin_dir.join(format!("{}.exe", p.spec.name));
             if !bin.exists() {
-                eprintln!("  [skip] {} not found at {}", spec.name, bin.display());
+                eprintln!("  [skip] {} not found at {}", p.spec.name, bin.display());
                 return None;
             }
-            (bin, spec.args.iter().map(|s| s.to_string()).collect::<Vec<_>>())
+            (bin, p.spec.args.iter().map(|s| s.to_string()).collect::<Vec<_>>())
         }
         "octopus" => {
-            let mut a = vec!["bio".to_string(), "external".to_string(), spec.name.to_string(), "--allow-mutation".to_string()];
-            a.extend(spec.args.iter().map(|s| s.to_string()));
+            let mut a = vec!["bio".to_string(), "external".to_string(), p.spec.name.to_string(), "--allow-mutation".to_string()];
+            a.extend(p.spec.args.iter().map(|s| s.to_string()));
             (octopus_bin.to_path_buf(), a)
         }
         _ => return None,
@@ -282,7 +282,7 @@ fn run_one(
         .output();
 
     let wall_ms = start.elapsed().as_millis();
-    let timed_out = wall_ms > timeout_secs as u128 * 1000;
+    let timed_out = wall_ms > p.timeout_secs as u128 * 1000;
 
     let (success, stdout, stderr, cpu_ms, peak_rss_kb) = match output {
         Ok(o) if o.status.success() && !timed_out => (
@@ -309,25 +309,25 @@ fn run_one(
     };
 
     // Save raw output if requested or on failure
-    if keep_raw || !success {
-        let raw_file = base.join("raw").join(format!(
+    if p.keep_raw || !success {
+        let raw_file = p.base.join("raw").join(format!(
             "{}-{}-{}-{}.txt",
-            spec.name,
-            mode,
-            sample,
+            p.spec.name,
+            p.mode,
+            p.sample,
             if success { "ok" } else { "fail" }
         ));
         let content = format!(
             "=== {} {} sample {} ===\nCMD: {} {}\nWALL_MS: {}\nSUCCESS: {}\n--- STDOUT ---\n{}\n--- STDERR ---\n{}\n",
-            spec.name, mode, sample, cmd.display(), args.join(" "), wall_ms, success, stdout, stderr
+            p.spec.name, p.mode, p.sample, cmd.display(), args.join(" "), wall_ms, success, stdout, stderr
         );
         let _ = fs::write(&raw_file, content);
     }
 
     Some(RunResult {
-        module: spec.name.to_string(),
-        mode: mode.to_string(),
-        sample,
+        module: p.spec.name.to_string(),
+        mode: p.mode.to_string(),
+        sample: p.sample,
         success,
         wall_ms,
         cpu_ms,
@@ -398,10 +398,10 @@ fn compute_summary(
 fn print_summary(s: &ModuleSummary) {
     let status = if s.pass { "✓" } else { "✗" };
     println!(
-        "  {} {} | direct: {}ms (p95 {}) | octopus: {}ms (p95 {}) | overhead: {}ms | ratio: {:.2}x",
-        status, s.module,
-        s.direct_median, s.direct_p95,
-        s.octopus_median, s.octopus_p95,
+        "  {} {} [{}] | direct: {}ms (min {} max {} p95 {}) | octopus: {}ms (min {} max {} p95 {}) | overhead: {}ms | ratio: {:.2}x",
+        status, s.module, s.effect,
+        s.direct_median, s.direct_min, s.direct_max, s.direct_p95,
+        s.octopus_median, s.octopus_min, s.octopus_max, s.octopus_p95,
         s.adapter_overhead_median, s.ratio
     );
 }
@@ -441,11 +441,11 @@ fn save_module_samples(base: &Path, module: &str, direct: &[RunResult], octopus:
 
 fn write_samples_csv(path: &Path, results: &[RunResult]) -> std::io::Result<()> {
     let mut w = csv::Writer::from_path(path)?;
-    w.write_record(&[
+    w.write_record([
         "module", "mode", "sample", "success", "wall_ms", "cpu_ms", "peak_rss_kb", "stdout", "stderr"
     ])?;
     for r in results {
-        w.write_record(&[
+        w.write_record([
             &r.module,
             &r.mode,
             &r.sample.to_string(),
@@ -477,7 +477,7 @@ fn write_summary_csv(path: &Path, results: &[RunResult]) -> std::io::Result<()> 
     }
 
     let mut w = csv::Writer::from_path(path)?;
-    w.write_record(&[
+    w.write_record([
         "module", "effect", "pass",
         "direct_median", "direct_p95", "direct_min", "direct_max",
         "octopus_median", "octopus_p95", "octopus_min", "octopus_max",
@@ -507,7 +507,7 @@ fn write_summary_csv(path: &Path, results: &[RunResult]) -> std::io::Result<()> 
         let ratio = if direct_median > 0 { octopus_median as f64 / direct_median as f64 } else { 0.0 };
         let pass = !direct.is_empty() && !octopus.is_empty();
 
-        w.write_record(&[
+        w.write_record([
             spec.name,
             spec.effect,
             &pass.to_string(),
@@ -547,7 +547,7 @@ fn write_markdown_report(
     }
 
     let mut md = String::new();
-    md.push_str(&format!("# Octopus Bio-Binaries benchmark\n\n"));
+    md.push_str("# Octopus Bio-Binaries benchmark\n\n");
     md.push_str(&format!("- Run: `{timestamp}`\n"));
     md.push_str(&format!("- Host: `{}` / `{}`\n", whoami::fallible::hostname().unwrap_or_else(|_| "unknown".into()), std::env::consts::OS));
     md.push_str(&format!("- Octopus: `{}`\n", find_octopus_binary().display()));
