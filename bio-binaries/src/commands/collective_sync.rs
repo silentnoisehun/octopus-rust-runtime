@@ -89,19 +89,18 @@ pub async fn run(echo_x_addr: &str, topic: &str, vote: &str) -> ConsensusResult 
     let votes = vec![vote.to_string()];
 
     // Try to receive status response
-    match tokio::time::timeout(std::time::Duration::from_secs(2), client.recv_message()).await {
-        Ok(Ok(msg)) => {
-            // Parse payload to detect drone count
-            let fields = crate::bio_protocol::decode_fields(&msg.payload);
-            if let Some((_, drone_count_bytes)) = fields.iter().find(|(k, _)| k == "drone_count") {
-                if let Ok(count_str) = std::str::from_utf8(drone_count_bytes) {
-                    if let Ok(count) = count_str.parse::<usize>() {
-                        cluster_size = count;
-                    }
+    if let Ok(Ok(msg)) =
+        tokio::time::timeout(std::time::Duration::from_secs(2), client.recv_message()).await
+    {
+        // Parse payload to detect drone count
+        let fields = crate::bio_protocol::decode_fields(&msg.payload);
+        if let Some((_, drone_count_bytes)) = fields.iter().find(|(k, _)| k == "drone_count") {
+            if let Ok(count_str) = std::str::from_utf8(drone_count_bytes) {
+                if let Ok(count) = count_str.parse::<usize>() {
+                    cluster_size = count;
                 }
             }
         }
-        _ => {}
     }
 
     // Majority vote

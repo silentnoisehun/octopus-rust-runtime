@@ -155,6 +155,12 @@ pub struct TokenVerifier {
     token: Option<DroneToken>,
 }
 
+impl Default for TokenVerifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TokenVerifier {
     pub fn new() -> Self {
         Self { token: None }
@@ -271,13 +277,13 @@ impl CryostasisHandler {
             Ok(result) => {
                 // Generate Frame Snap PNG
                 let png_data = crate::qr_frame::generate_frame_snap(&frame);
-                let timestamp = frame.frozen_at.replace(':', "-").replace('.', "-");
+                let timestamp = frame.frozen_at.replace([':', '.'], "-");
                 let png_path = dir.join(format!("cryo_{}.png", timestamp));
                 let _ = std::fs::write(&png_path, &png_data);
 
                 eprintln!(
                     "[CRYO] Frame saved: {} ({} bytes compressed)",
-                    result.frame_hash[..16].to_string(),
+                    &result.frame_hash[..16],
                     result.compressed_size
                 );
                 Ok(result.frame_hash)
@@ -559,16 +565,15 @@ impl DigitalLeash {
             BioOp::CrisprPatch => {
                 CrisprHandler::handle_patch(&mut self.metabolic, &msg.payload);
             }
-            BioOp::ImmuneAlert => {
+            BioOp::ImmuneAlert
                 // Payload: [alert_type:1][severity:1][rest...]
-                if msg.payload.len() >= 2 {
+                if msg.payload.len() >= 2 => {
                     let alert_type =
                         AlertType::from_byte(msg.payload[0]).unwrap_or(AlertType::AnomalousTraffic);
                     let severity =
                         AlertSeverity::from_byte(msg.payload[1]).unwrap_or(AlertSeverity::Medium);
                     ImmuneHandler::handle_alert(&mut self.metabolic, alert_type, severity);
                 }
-            }
             _ => {}
         }
 

@@ -520,7 +520,7 @@ fn render_heatmap(
     let core_y_start = y_start + slice_h + 8;
     let available_h = y_end.saturating_sub(core_y_start).saturating_sub(8);
     let core_count = cores.len().max(1);
-    let bar_h = (available_h / core_count as u32).min(8).max(2);
+    let bar_h = (available_h / core_count as u32).clamp(2, 8);
 
     render_text(img, "CORE USAGE", 4, core_y_start, Rgba([80, 80, 100, 255]));
 

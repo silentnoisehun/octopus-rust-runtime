@@ -165,7 +165,7 @@ pub fn search(idx: &TrigramIndex, query: &str, limit: usize) -> SearchResult {
     }
 
     let mut hits: Vec<((usize, usize), usize)> = scores.into_iter().collect();
-    hits.sort_by(|a, b| b.1.cmp(&a.1));
+    hits.sort_by_key(|(_, b)| std::cmp::Reverse(*b));
 
     let total = hits.len();
     let results: Vec<SearchHit> = hits

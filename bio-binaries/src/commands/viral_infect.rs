@@ -159,7 +159,7 @@ pub fn format_pretty(result: &InfectResult) -> String {
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  > Infection Summary\n"));
+    out.push_str("  > Infection Summary\n");
     out.push_str(&format!("    Source: {}\n", result.source));
     out.push_str(&format!(
         "    Mode: {}\n",
@@ -179,7 +179,7 @@ pub fn format_pretty(result: &InfectResult) -> String {
 
     if !result.infections.is_empty() {
         out.push('\n');
-        out.push_str(&format!("  > Infected Files\n"));
+        out.push_str("  > Infected Files\n");
         for inf in result.infections.iter().take(20) {
             let status = if inf.mutated { "MUTATED" } else { "DETECTED" };
             out.push_str(&format!(

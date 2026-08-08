@@ -171,7 +171,7 @@ impl HomeostasisAgent {
         );
 
         if let Some(judgement) = self.ask_iteloszek(&energy_map).await {
-            eprintln!("[HOMEO] Ítélőszék Döntött: {}", judgement.to_string());
+            eprintln!("[HOMEO] Ítélőszék Döntött: {}", judgement);
 
             let action = judgement["action"].as_str().unwrap_or("NONE");
             let reason = judgement["reason"].as_str().unwrap_or("Ismeretlen indok");
@@ -207,7 +207,7 @@ impl HomeostasisAgent {
                     let cpu_bytes = leash.metabolic.limits.max_cpu_percent.to_le_bytes();
                     self.broadcast_patch("max_cpu", &cpu_bytes).await;
                 }
-                "NONE" | _ => {
+                _ => {
                     eprintln!("[HOMEO] Ítélőszék jóváhagyta az állapotot: {}", reason);
                 }
             }

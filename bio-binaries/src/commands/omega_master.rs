@@ -663,7 +663,7 @@ async fn homeostasis_loop(drones: DroneMap) {
         let online_count = drones_read.len();
         drop(drones_read);
 
-        if online_count > 0 && tick % 3 == 0 {
+        if online_count > 0 && tick.is_multiple_of(3) {
             eprintln!(
                 "[QUEEN-HOMEO] Homeostasis tick #{} ({} drones)",
                 tick, online_count
@@ -682,7 +682,7 @@ async fn thermal_sensor_loop(drones: DroneMap) {
 
         let drones_read = drones.read().await;
         for entry in drones_read.values() {
-            if tick % 6 == 0 {
+            if tick.is_multiple_of(6) {
                 eprintln!(
                     "[QUEEN-THERMAL] Monitoring {}: {} (last_hb={}ms ago)",
                     entry.name,

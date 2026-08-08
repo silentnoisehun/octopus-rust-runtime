@@ -32,7 +32,7 @@ pub use capability::{
 pub use contract::CapabilityContract;
 pub use outcome::{ExecutionOutcome, ExecutionStatus};
 
-pub use orchestration::{EventEntry, recent_events};
+pub use orchestration::{recent_events, EventEntry};
 
 pub fn marshal_plan(task: &str) -> ExecutionOutcome {
     marshal::plan_outcome(task)
@@ -973,7 +973,6 @@ mod tests {
     #[test]
     fn unknown_blade_is_a_typed_failure() {
         ensure_dev_bypass();
-        let outcome = execute_component("missing-blade", "input");
         let outcome = execute_component("missing-blade", "input");
         assert!(outcome.is_failed());
         // Unknown blades are classified as Unavailable by the capability registry

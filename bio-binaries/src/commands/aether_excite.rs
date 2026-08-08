@@ -191,14 +191,14 @@ fn format_pretty(result: &ExcitationResult) -> String {
         "{}\n",
         "╔══════════════════════════════════════════╗"
     ));
-    out.push_str(&format!("║  ⚡ AETHER-EXCITE \n"));
-    out.push_str(&format!("║  Layer: Quantum-Space / Excitation Monitor\n"));
+    out.push_str("║  ⚡ AETHER-EXCITE \n");
+    out.push_str("║  Layer: Quantum-Space / Excitation Monitor\n");
     out.push_str(&format!(
         "{}\n\n",
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  ▸ Kernel Cores (CPU)\n"));
+    out.push_str("  ▸ Kernel Cores (CPU)\n");
     for r in result.regions.iter().filter(|r| r.region_type == "CPU") {
         out.push_str(&format!(
             "    {} {:.1}% [{}]\n",
@@ -206,8 +206,8 @@ fn format_pretty(result: &ExcitationResult) -> String {
         ));
     }
 
-    out.push_str("\n");
-    out.push_str(&format!("  ▸ Memory Pool\n"));
+    out.push('\n');
+    out.push_str("  ▸ Memory Pool\n");
     for r in result.regions.iter().filter(|r| r.region_type == "RAM") {
         let pct = (r.usage_percent).min(100.0);
         let filled = (pct / 5.0) as usize;
@@ -221,8 +221,8 @@ fn format_pretty(result: &ExcitationResult) -> String {
         ));
     }
 
-    out.push_str("\n");
-    out.push_str(&format!("  ▸ IO Gateways (Disk)\n"));
+    out.push('\n');
+    out.push_str("  ▸ IO Gateways (Disk)\n");
     for r in result.regions.iter().filter(|r| r.region_type == "Disk") {
         let pct = (r.usage_percent).min(100.0);
         let filled = (pct / 5.0) as usize;
@@ -237,14 +237,14 @@ fn format_pretty(result: &ExcitationResult) -> String {
     }
 
     if !result.gravity_wells.is_empty() {
-        out.push_str("\n");
-        out.push_str(&format!("  ▸ Gravity Wells (>80%)\n"));
+        out.push('\n');
+        out.push_str("  ▸ Gravity Wells (>80%)\n");
         for gw in &result.gravity_wells {
             out.push_str(&format!("  [WARN] {}\n", gw));
         }
     }
 
-    out.push_str("\n");
+    out.push('\n');
     out.push_str(&format!(
         "    Total Excitation: {:.1}%\n",
         result.total_excitation

@@ -160,7 +160,7 @@ pub fn format_pretty(result: &InjectResult) -> String {
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  > Patch Operation\n"));
+    out.push_str("  > Patch Operation\n");
     out.push_str(&format!("    Target: {}\n", result.target));
     out.push_str(&format!(
         "    Mode: {}\n",
@@ -171,7 +171,7 @@ pub fn format_pretty(result: &InjectResult) -> String {
     out.push_str(&format!("    Lines Injected: {}\n", result.lines_injected));
 
     out.push('\n');
-    out.push_str(&format!("  > Integrity\n"));
+    out.push_str("  > Integrity\n");
     let hash_before_display = if result.hash_before.len() >= 32 {
         &result.hash_before[..32]
     } else {

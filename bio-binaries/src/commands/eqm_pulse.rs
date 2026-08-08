@@ -171,14 +171,14 @@ fn format_pretty(result: &PulseResult) -> String {
         "{}\n",
         "╔══════════════════════════════════════════╗"
     ));
-    out.push_str(&format!("║  💓 EQM-PULSE \n"));
-    out.push_str(&format!("║  Layer: Quantum-Space / Health Monitor\n"));
+    out.push_str("║  💓 EQM-PULSE \n");
+    out.push_str("║  Layer: Quantum-Space / Health Monitor\n");
     out.push_str(&format!(
         "{}\n\n",
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  ▸ System Snapshot\n"));
+    out.push_str("  ▸ System Snapshot\n");
     out.push_str(&format!("    CPUs: {}\n", result.snapshot.cpu_count));
     out.push_str(&format!(
         "    CPU Usage: {:.1}%\n",
@@ -191,7 +191,7 @@ fn format_pretty(result: &PulseResult) -> String {
     };
     out.push_str(&format!("    Memory: {:.1}%\n", mem_percent));
 
-    out.push_str("\n");
+    out.push('\n');
     out.push_str(&format!(
         "  ▸ FFT Analysis ({} samples @ {:.1}Hz)\n",
         result.cpu_samples, result.fft_analysis.sample_rate_hz
@@ -211,8 +211,8 @@ fn format_pretty(result: &PulseResult) -> String {
         result.fft_analysis.stability_index
     ));
 
-    out.push_str("\n");
-    out.push_str(&format!("  ▸ Resonance\n"));
+    out.push('\n');
+    out.push_str("  ▸ Resonance\n");
     out.push_str(&format!("    Score: {:.1}\n", result.resonance_score));
     out.push_str(&format!("    Health: {}\n", result.health_status));
 

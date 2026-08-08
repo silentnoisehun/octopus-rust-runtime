@@ -47,7 +47,7 @@ impl QueenKey {
         }
         let queen = Self::generate();
         std::fs::create_dir_all(dir)?;
-        std::fs::write(&path, &queen.key)?;
+        std::fs::write(&path, queen.key)?;
         Ok(queen)
     }
 
@@ -203,8 +203,7 @@ impl BinaryIntegrity {
 
     /// Save current binary hash to a sidecar file
     pub fn save_hash(dir: &str) -> std::io::Result<String> {
-        let hash = Self::self_hash()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "cannot hash self"))?;
+        let hash = Self::self_hash().ok_or_else(|| std::io::Error::other("cannot hash self"))?;
         let exe_name = std::env::current_exe()
             .ok()
             .and_then(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))

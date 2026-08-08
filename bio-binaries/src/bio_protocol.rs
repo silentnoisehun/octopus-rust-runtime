@@ -9,7 +9,6 @@
 ///
 /// The 8-byte nonce (nanosecond timestamp) prevents replay attacks.
 /// Receivers maintain a seen-nonce window to reject duplicates.
-
 pub const BIO_MAGIC: [u8; 2] = [0xB1, 0x0B]; // "BIOB" marker
 pub const BIO_HEADER_SIZE: usize = 60;
 pub const MAX_GENERATION: u32 = 16; // Hard limit on clone depth

@@ -157,14 +157,14 @@ fn format_pretty(result: &MethyResult) -> String {
         "{}\n",
         "╔══════════════════════════════════════════╗"
     ));
-    out.push_str(&format!("║  🧬 EQM-METHY \n"));
-    out.push_str(&format!("║  Layer: Quantum-Space / File Consolidator\n"));
+    out.push_str("║  🧬 EQM-METHY \n");
+    out.push_str("║  Layer: Quantum-Space / File Consolidator\n");
     out.push_str(&format!(
         "{}\n\n",
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  ▸ Index Summary\n"));
+    out.push_str("  ▸ Index Summary\n");
     out.push_str(&format!("    Root: {}\n", result.root));
     out.push_str(&format!("    Total Files: {}\n", result.total_files));
     out.push_str(&format!(
@@ -173,8 +173,8 @@ fn format_pretty(result: &MethyResult) -> String {
     ));
     out.push_str(&format!("    Index Written: {}\n", result.index_file));
 
-    out.push_str("\n");
-    out.push_str(&format!("  ▸ Top Files by Methylation Rate\n"));
+    out.push('\n');
+    out.push_str("  ▸ Top Files by Methylation Rate\n");
     for f in result.files.iter().take(15) {
         let marker = if f.important { "●" } else { "○" };
         let rate_str = format!("{:.3}", f.methylation_rate);

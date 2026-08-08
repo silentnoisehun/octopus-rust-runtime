@@ -154,7 +154,7 @@ pub fn modulate_bfsk(data: &[u8], config: &AcousticConfig) -> Vec<i16> {
 
     // Leading silence (50ms)
     let silence_samples = (config.sample_rate as f64 * 0.05) as usize;
-    samples.extend(std::iter::repeat(0i16).take(silence_samples));
+    samples.extend(std::iter::repeat_n(0i16, silence_samples));
 
     let max_val = (i16::MAX as f64) * config.amplitude;
 
@@ -176,7 +176,7 @@ pub fn modulate_bfsk(data: &[u8], config: &AcousticConfig) -> Vec<i16> {
     }
 
     // Trailing silence (50ms)
-    samples.extend(std::iter::repeat(0i16).take(silence_samples));
+    samples.extend(std::iter::repeat_n(0i16, silence_samples));
 
     samples
 }

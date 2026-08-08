@@ -83,8 +83,8 @@ fn measure_coherence() -> (f64, f64, f64) {
     let resonance = 50.0 + (stability * 30.0); // Range 50-80 Hz for stable systems
 
     (
-        stability.min(1.0).max(0.0),
-        coherence.min(1.0).max(0.0),
+        stability.clamp(0.0, 1.0),
+        coherence.clamp(0.0, 1.0),
         resonance,
     )
 }
@@ -168,16 +168,14 @@ fn format_pretty(result: &ConvergenceResult) -> String {
         "{}\n",
         "╔══════════════════════════════════════════╗"
     ));
-    out.push_str(&format!("║  ◈ OMEGA-POINT \n"));
-    out.push_str(&format!(
-        "║  Layer: Harmonic Resonance / Convergence Monitor\n"
-    ));
+    out.push_str("║  ◈ OMEGA-POINT \n");
+    out.push_str("║  Layer: Harmonic Resonance / Convergence Monitor\n");
     out.push_str(&format!(
         "{}\n\n",
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  ▸ Convergence Analysis\n"));
+    out.push_str("  ▸ Convergence Analysis\n");
     out.push_str(&format!(
         "    Measurements: {}\n",
         result.total_measurements
@@ -187,7 +185,7 @@ fn format_pretty(result: &ConvergenceResult) -> String {
         result.total_measurements
     ));
 
-    out.push_str(&format!("  ▸ Aggregates\n"));
+    out.push_str("  ▸ Aggregates\n");
     out.push_str(&format!(
         "    Stability Average:    {:.1}%\n",
         result.stability_average
@@ -201,7 +199,7 @@ fn format_pretty(result: &ConvergenceResult) -> String {
         result.convergence_confidence
     ));
 
-    out.push_str(&format!("  ▸ Recent Points (last 5)\n"));
+    out.push_str("  ▸ Recent Points (last 5)\n");
     let start_idx = result.convergence_points.len().saturating_sub(5);
     for point in &result.convergence_points[start_idx..] {
         out.push_str(&format!(
@@ -213,7 +211,7 @@ fn format_pretty(result: &ConvergenceResult) -> String {
         ));
     }
 
-    out.push_str("\n");
+    out.push('\n');
     if result.converged {
         out.push_str(&format!(
             "  ✓ System Status: {} (CONVERGED)\n",

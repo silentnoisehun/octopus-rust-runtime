@@ -42,7 +42,7 @@ fn cpu_to_amplitude(cpu_percent: f32) -> f32 {
         0.0 // idle — no signal needed
     } else {
         // Normalize: 10% → 0.05, 50% → 0.4, 85% → 0.75, 100% → 1.0
-        ((cpu_percent - 10.0) / 90.0).min(1.0).max(0.0)
+        ((cpu_percent - 10.0) / 90.0).clamp(0.0, 1.0)
     }
 }
 
@@ -150,7 +150,7 @@ pub async fn dispatch(args: &[String]) -> Result<String, String> {
                 "CALM"
             };
 
-            if tick % 5 == 0 {
+            if tick.is_multiple_of(5) {
                 eprintln!(
                     "[VAGUS] Tick {}: CPU={:.1}% ({}) RAM={:.1}% → 12Hz amp={:.2}, 4Hz health={:.2}",
                     tick, cpu, status, ram, cpu_amp, 0.1 + ram_to_health_modifier(ram)

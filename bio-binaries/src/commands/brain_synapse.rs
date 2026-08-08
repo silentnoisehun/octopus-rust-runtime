@@ -131,7 +131,7 @@ pub fn run(path: &str, limit: usize, min_weight: usize) -> SynapseResult {
         })
         .collect();
 
-    links.sort_by(|a, b| b.co_change_count.cmp(&a.co_change_count));
+    links.sort_by_key(|l| std::cmp::Reverse(l.co_change_count));
 
     // Find strongest clusters (connected components of top links)
     let top_links: Vec<_> = links.iter().take(20).collect();

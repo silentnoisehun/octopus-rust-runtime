@@ -162,7 +162,7 @@ pub fn run(path: &str, lang: &str) -> ConnectomeResult {
         })
         .collect();
 
-    nodes.sort_by(|a, b| b.weight.cmp(&a.weight));
+    nodes.sort_by_key(|n| std::cmp::Reverse(n.weight));
 
     let hub_files: Vec<String> = nodes
         .iter()

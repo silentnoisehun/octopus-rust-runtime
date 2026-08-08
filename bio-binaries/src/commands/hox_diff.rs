@@ -117,6 +117,7 @@ pub fn classify_region(dir_name: &str) -> &'static str {
 
 pub fn run(path: &str) -> HoxResult {
     let now = std::time::SystemTime::now();
+    #[allow(clippy::type_complexity)]
     let mut region_data: HashMap<
         String,
         (Vec<String>, usize, u64, HashMap<String, usize>, Vec<f64>),
@@ -177,7 +178,7 @@ pub fn run(path: &str) -> HoxResult {
         .into_iter()
         .map(|(rtype, (dirs, count, size, exts, ages))| {
             let mut ext_vec: Vec<(String, usize)> = exts.into_iter().collect();
-            ext_vec.sort_by(|a, b| b.1.cmp(&a.1));
+            ext_vec.sort_by_key(|(_, b)| std::cmp::Reverse(*b));
             ext_vec.truncate(5);
 
             // Stability: based on average age (older = more stable)
@@ -200,7 +201,7 @@ pub fn run(path: &str) -> HoxResult {
         })
         .collect();
 
-    regions.sort_by(|a, b| b.file_count.cmp(&a.file_count));
+    regions.sort_by_key(|r| std::cmp::Reverse(r.file_count));
 
     let avg_stability: f64 = if !regions.is_empty() {
         regions.iter().map(|r| r.stability).sum::<f64>() / regions.len() as f64
@@ -259,7 +260,7 @@ pub fn format_pretty(result: &HoxResult) -> String {
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  > Project Overview\n"));
+    out.push_str("  > Project Overview\n");
     out.push_str(&format!("    Root: {}\n", result.project_root));
     out.push_str(&format!("    Files: {}\n", result.total_files));
     out.push_str(&format!("    Directories: {}\n", result.total_dirs));

@@ -75,8 +75,13 @@ pub fn parse_issues(output: &str) -> Vec<DetectedIssue> {
         // Try to find file location in nearby lines
         let mut file = None;
         let mut line_num = None;
-        for j in i..=(i + 3).min(lines.len() - 1) {
-            if let Some(loc) = location_re.captures(lines[j]) {
+        for (_j, line) in lines
+            .iter()
+            .enumerate()
+            .skip(i)
+            .take((3).min(lines.len() - 1 - i) + 1)
+        {
+            if let Some(loc) = location_re.captures(line) {
                 file = Some(loc[1].to_string());
                 line_num = loc[2].parse().ok();
                 break;
@@ -117,11 +122,11 @@ pub fn predict_trend(errors: usize, warnings: usize, segments: usize) -> Vec<Pre
         };
 
         let desc = if est_errors > err_f * 2.0 {
-            format!("Error count may double — refactoring needed")
+            "Error count may double — refactoring needed".to_string()
         } else if est_warnings > 10.0 {
-            format!("Warning accumulation risk — address warnings now")
+            "Warning accumulation risk — address warnings now".to_string()
         } else {
-            format!("Stable trajectory — maintain current quality")
+            "Stable trajectory — maintain current quality".to_string()
         };
 
         predictions.push(PredictedRisk {
@@ -200,7 +205,7 @@ pub fn format_pretty(result: &DreamResult) -> String {
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  > Build Analysis\n"));
+    out.push_str("  > Build Analysis\n");
     out.push_str(&format!("    Path: {}\n", result.project_path));
     out.push_str(&format!("    Command: {}\n", result.command));
     out.push_str(&format!("    Exit Code: {}\n", result.exit_code));
@@ -209,7 +214,7 @@ pub fn format_pretty(result: &DreamResult) -> String {
 
     if !result.issues.is_empty() {
         out.push('\n');
-        out.push_str(&format!("  > Detected Issues\n"));
+        out.push_str("  > Detected Issues\n");
         for issue in result.issues.iter().take(15) {
             let loc = match (&issue.file, &issue.line) {
                 (Some(f), Some(l)) => format!("{}:{}", f, l),
@@ -226,7 +231,7 @@ pub fn format_pretty(result: &DreamResult) -> String {
     }
 
     out.push('\n');
-    out.push_str(&format!("  > Future Predictions\n"));
+    out.push_str("  > Future Predictions\n");
     for pred in &result.predictions {
         out.push_str(&format!(
             "    Segment +{}: [{}] err≈{:.1} warn≈{:.1} — {}\n",

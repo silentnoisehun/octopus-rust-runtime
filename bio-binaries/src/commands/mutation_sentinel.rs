@@ -153,7 +153,7 @@ pub async fn dispatch(args: &[String]) -> Result<String, String> {
 
             let contents = std::fs::read(&file).map_err(|e| e.to_string())?;
             let hash = blake3::hash(&contents);
-            output::kv("BLAKE3", &hash.to_hex().to_string());
+            output::kv("BLAKE3", hash.to_hex().as_ref());
             output::success("Hash computed");
             output::summary("mutation-sentinel", "Hash complete");
 

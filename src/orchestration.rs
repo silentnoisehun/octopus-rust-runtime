@@ -12,7 +12,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 static ROOT_SEQ: AtomicU64 = AtomicU64::new(1);
 static ARM_SEQ: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ArmStatus {
     Running,
     Completed,
@@ -35,7 +35,7 @@ impl ArmStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ArmRecord {
     pub id: String,
     pub name: String,
@@ -65,7 +65,7 @@ pub struct RootRecord {
     pub children: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct EventEntry {
     pub timestamp: u128,
     pub root_id: String,
@@ -441,6 +441,15 @@ pub fn find_orphaned_arms() -> Vec<ArmRecord> {
         .filter(|arm| matches!(arm.status, ArmStatus::Running | ArmStatus::Resumed))
         .cloned()
         .collect()
+}
+
+/// Return the most recent N orchestration events for WebSocket streaming.
+/// Additive, non-breaking API (spec §4.8).
+pub fn recent_events(limit: usize) -> Vec<EventEntry> {
+    let s = state();
+    s.as_ref()
+        .map(|s| s.events.iter().rev().take(limit).cloned().collect())
+        .unwrap_or_default()
 }
 
 pub fn resume_arm(arm_id: &str) -> Result<ArmRecord, ExecutionOutcome> {

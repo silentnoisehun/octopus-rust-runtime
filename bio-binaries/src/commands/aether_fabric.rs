@@ -144,14 +144,14 @@ fn format_pretty(result: &FabricResult) -> String {
         "{}\n",
         "╔══════════════════════════════════════════╗"
     ));
-    out.push_str(&format!("║  🌐 AETHER-FABRIC \n"));
-    out.push_str(&format!("║  Layer: Quantum-Space / Topology Mapper\n"));
+    out.push_str("║  🌐 AETHER-FABRIC \n");
+    out.push_str("║  Layer: Quantum-Space / Topology Mapper\n");
     out.push_str(&format!(
         "{}\n\n",
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  ▸ System\n"));
+    out.push_str("  ▸ System\n");
     out.push_str(&format!("    Hostname: {}\n", result.hostname));
     out.push_str(&format!("    Total Processes: {}\n", result.process_count));
     out.push_str(&format!(
@@ -159,8 +159,8 @@ fn format_pretty(result: &FabricResult) -> String {
         result.topology_summary.total_connections
     ));
 
-    out.push_str("\n");
-    out.push_str(&format!("  ▸ Top Processes (by CPU)\n"));
+    out.push('\n');
+    out.push_str("  ▸ Top Processes (by CPU)\n");
     for p in result.top_processes.iter().take(15) {
         out.push_str(&format!(
             "    [{}] {}: cpu={:.1}%  mem={}MB\n",
@@ -169,8 +169,8 @@ fn format_pretty(result: &FabricResult) -> String {
     }
 
     if !result.topology_summary.listening_ports.is_empty() {
-        out.push_str("\n");
-        out.push_str(&format!("  ▸ Listening Ports\n"));
+        out.push('\n');
+        out.push_str("  ▸ Listening Ports\n");
         for port in result.topology_summary.listening_ports.iter().take(15) {
             out.push_str(&format!("    ●: {}\n", port));
         }

@@ -175,14 +175,14 @@ fn format_pretty(result: &SyncResult) -> String {
         "{}\n",
         "╔══════════════════════════════════════════╗"
     ));
-    out.push_str(&format!("║  🔗 TELEPATHY-SYNC \n"));
-    out.push_str(&format!("║  Layer: Quantum-Space / Directory Sync\n"));
+    out.push_str("║  🔗 TELEPATHY-SYNC \n");
+    out.push_str("║  Layer: Quantum-Space / Directory Sync\n");
     out.push_str(&format!(
         "{}\n\n",
         "╚══════════════════════════════════════════╝"
     ));
 
-    out.push_str(&format!("  ▸ Sync Summary\n"));
+    out.push_str("  ▸ Sync Summary\n");
     out.push_str(&format!("    Source: {}\n", result.source));
     out.push_str(&format!("    Target: {}\n", result.target));
     out.push_str(&format!(
@@ -198,8 +198,8 @@ fn format_pretty(result: &SyncResult) -> String {
         result.total_target_files
     ));
 
-    out.push_str("\n");
-    out.push_str(&format!("  ▸ Actions\n"));
+    out.push('\n');
+    out.push_str("  ▸ Actions\n");
     out.push_str(&format!("    Copied (new): {}\n", result.copied));
     out.push_str(&format!("    Updated (changed): {}\n", result.updated));
     out.push_str(&format!("    Skipped (identical): {}\n", result.skipped));
@@ -209,8 +209,8 @@ fn format_pretty(result: &SyncResult) -> String {
     ));
 
     if !result.actions.is_empty() {
-        out.push_str("\n");
-        out.push_str(&format!("  ▸ Details\n"));
+        out.push('\n');
+        out.push_str("  ▸ Details\n");
         for a in result.actions.iter().take(20) {
             out.push_str(&format!(
                 "    {}: {} ({})\n",

@@ -14,7 +14,7 @@ const MAX_LOCAL_READ_BYTES: u64 = 1024 * 1024;
 
 /// Operational category of a capability. This is the "how it runs" axis and is
 /// fully disjoint from its availability/support status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum CapabilityMode {
     RealAlgorithm,
     LocalRead,
@@ -42,7 +42,7 @@ impl fmt::Display for CapabilityMode {
 
 /// Availability/support status of a capability. This is the "is it usable in
 /// this environment" axis and is fully disjoint from its operational mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum CapabilityStatus {
     Real,
     Unavailable,
@@ -64,7 +64,7 @@ impl fmt::Display for CapabilityStatus {
 
 /// Observable effect class. This deliberately does not reuse `status`: a
 /// capability can be callable (`real`) while still being advisory-only.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum CapabilityExecutionClass {
     Advisory,
     LocalOperation,
@@ -86,7 +86,7 @@ impl fmt::Display for CapabilityExecutionClass {
 /// Evidence grade for the registered route. `Tested` means automated coverage;
 /// `Observed` additionally exercised a real local effect. Neither grade grants
 /// authorization or bypasses the status gate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub enum VerificationGrade {
     Declared,
     Tested,
@@ -118,7 +118,7 @@ impl fmt::Display for CapabilityProfile {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CapabilityInfo {
     pub name: String,
     pub mode: CapabilityMode,

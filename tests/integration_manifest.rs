@@ -27,6 +27,8 @@ fn run_manifest(source: &str, state_dir: &Path, allow_write: bool) -> Output {
         .arg("manifest")
         .arg("-")
         .env("OCTOPUS_STATE_DIR", state_dir)
+        .env("OCTOPUS_ENFORCE", "0")
+        .env("OCTOPUS_DEV_MODE", "1")
         .env("OCTOPUS_ALLOWED_ROOTS", state_dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

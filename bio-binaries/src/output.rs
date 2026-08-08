@@ -4,13 +4,17 @@ use colored::*;
 pub fn banner(name: &str, layer: &str, emoji: &str) {
     println!(
         "{}",
-        format!("╔══════════════════════════════════════════╗").bright_cyan()
+        "╔══════════════════════════════════════════╗"
+            .to_string()
+            .bright_cyan()
     );
     println!("{}", format!("║  {} {} ", emoji, name).bright_cyan());
     println!("{}", format!("║  Layer: {}", layer).cyan());
     println!(
         "{}",
-        format!("╚══════════════════════════════════════════╝").bright_cyan()
+        "╚══════════════════════════════════════════╝"
+            .to_string()
+            .bright_cyan()
     );
     println!();
 }

@@ -604,7 +604,7 @@ fn extract_wave_memory(slices: &[SpectralSlice], cores: &[CoreFreeze]) -> Vec<Wa
 
     // Per-core dominant (top 4 cores by amplitude)
     let mut sorted_cores: Vec<&CoreFreeze> = cores.iter().collect();
-    sorted_cores.sort_by(|a, b| b.amplitude.cmp(&a.amplitude));
+    sorted_cores.sort_by_key(|c| std::cmp::Reverse(c.amplitude));
     for core in sorted_cores.iter().take(4) {
         if core.amplitude > 0 {
             waves.push(WaveMemory {
@@ -766,7 +766,7 @@ pub fn cryo_dir() -> PathBuf {
 pub fn save_frame(frame: &CryoFrame, dir: &Path) -> Result<CryoSaveResult, CryoError> {
     std::fs::create_dir_all(dir)?;
 
-    let timestamp = frame.frozen_at.replace(':', "-").replace('.', "-");
+    let timestamp = frame.frozen_at.replace([':', '.'], "-");
     let base_name = format!("cryo_{}", timestamp);
 
     // Compressed binary only (no JSON)

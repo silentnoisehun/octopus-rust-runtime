@@ -144,8 +144,8 @@ fn format_pretty(result: &EntangleResult) -> String {
         "{}\n",
         "╔══════════════════════════════════════════╗"
     ));
-    out.push_str(&format!("║  🔮 TELEPATHY-ENTANGLE \n"));
-    out.push_str(&format!("║  Layer: Quantum-Space / Shared State\n"));
+    out.push_str("║  🔮 TELEPATHY-ENTANGLE \n");
+    out.push_str("║  Layer: Quantum-Space / Shared State\n");
     out.push_str(&format!(
         "{}\n\n",
         "╚══════════════════════════════════════════╝"

@@ -43,20 +43,20 @@ fn format_pretty(result: &GeoResult) -> String {
     ));
 
     // Scan Summary
-    out.push_str(&format!("  ▸ Scan Summary\n"));
+    out.push_str("  ▸ Scan Summary\n");
     out.push_str(&format!("    Root: {}\n", result.root));
     out.push_str(&format!("    Files Scanned: {}\n", result.files_scanned));
     out.push_str(&format!("    Total Hotspots: {}\n", result.total_hotspots));
     out.push_str(&format!("    Tension Score: {:.2}\n", result.tension_score));
 
     out.push('\n');
-    out.push_str(&format!("  ▸ Severity Distribution\n"));
+    out.push_str("  ▸ Severity Distribution\n");
     for (sev, count) in &result.severity_counts {
         out.push_str(&format!("    {}: {}\n", sev, count));
     }
 
     out.push('\n');
-    out.push_str(&format!("  ▸ Top Hotspots (strongest magnetic charge)\n"));
+    out.push_str("  ▸ Top Hotspots (strongest magnetic charge)\n");
     for h in result.hotspots.iter().take(20) {
         let charge_str = format!("{:.1}", h.magnetic_charge);
         out.push_str(&format!(
