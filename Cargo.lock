@@ -393,6 +393,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
 
 [[package]]
+name = "crunchy"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -471,6 +477,15 @@ name = "either"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e5e8f6c15a24b9a3ee5efec809ccd006d3b30e8b3bb63c39af737c7f87daa1d"
+
+[[package]]
+name = "epistemic-core"
+version = "0.1.0"
+source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=1a3126baaf452744237adbbb1094cdce46c1de87#1a3126baaf452744237adbbb1094cdce46c1de87"
+dependencies = [
+ "sha2",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "equivalent"
@@ -612,6 +627,16 @@ dependencies = [
  "r-efi",
  "rand_core 0.10.1",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "half"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6dd08c532ae367adf81c312a4580bc67f1d0fe8bc9c460520283f4c0ff277888"
+dependencies = [
+ "cfg-if",
+ "crunchy",
 ]
 
 [[package]]
@@ -1006,7 +1031,7 @@ dependencies = [
 [[package]]
 name = "microscope-hooks"
 version = "0.1.0"
-source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=2b7085ec7b961820c68ca244857f162700db8907#2b7085ec7b961820c68ca244857f162700db8907"
+source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=1a3126baaf452744237adbbb1094cdce46c1de87#1a3126baaf452744237adbbb1094cdce46c1de87"
 dependencies = [
  "chrono",
  "serde",
@@ -1019,14 +1044,16 @@ dependencies = [
 [[package]]
 name = "microscope-memory"
 version = "0.8.2"
-source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=2b7085ec7b961820c68ca244857f162700db8907#2b7085ec7b961820c68ca244857f162700db8907"
+source = "git+https://github.com/silentnoisehun/microscope-memory.git?rev=1a3126baaf452744237adbbb1094cdce46c1de87#1a3126baaf452744237adbbb1094cdce46c1de87"
 dependencies = [
  "axum",
  "bincode",
  "blake3",
  "clap",
  "colored",
+ "epistemic-core",
  "getrandom 0.2.17",
+ "half",
  "hex",
  "hmac",
  "memmap2",
