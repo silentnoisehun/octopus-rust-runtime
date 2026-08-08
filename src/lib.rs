@@ -32,6 +32,8 @@ pub use capability::{
 pub use contract::CapabilityContract;
 pub use outcome::{ExecutionOutcome, ExecutionStatus};
 
+pub use orchestration::{EventEntry, recent_events};
+
 pub fn marshal_plan(task: &str) -> ExecutionOutcome {
     marshal::plan_outcome(task)
 }
@@ -958,8 +960,20 @@ fn render_manifest(
 mod tests {
     use super::*;
 
+    // Test setup: enable dev bypass so tests can run without enforcement state.
+    // This is the explicit, audited development bypass path.
+    fn ensure_dev_bypass() {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            std::env::set_var("OCTOPUS_ENFORCE", "0");
+            std::env::set_var("OCTOPUS_DEV_MODE", "1");
+        });
+    }
+
     #[test]
     fn unknown_blade_is_a_typed_failure() {
+        ensure_dev_bypass();
+        let outcome = execute_component("missing-blade", "input");
         let outcome = execute_component("missing-blade", "input");
         assert!(outcome.is_failed());
         // Unknown blades are classified as Unavailable by the capability registry
@@ -968,6 +982,7 @@ mod tests {
 
     #[test]
     fn failover_returns_a_completed_typed_outcome() {
+        ensure_dev_bypass();
         let outcome = execute_component("missing-blade|code-reader", "fn main() {}");
         assert!(!outcome.is_failed());
         assert!(outcome
@@ -977,6 +992,7 @@ mod tests {
 
     #[test]
     fn empty_arm_is_a_typed_failure() {
+        ensure_dev_bypass();
         let outcome = run_arm_outcome("", "input");
         assert_eq!(outcome.code.as_deref(), Some("empty_arm"));
     }
@@ -985,6 +1001,7 @@ mod tests {
 
     #[test]
     fn summarize_extracts_key_sentences() {
+        ensure_dev_bypass();
         let input = "Rust is a systems programming language. It provides memory safety. It has zero-cost abstractions. It is used for performance-critical code. The compiler enforces ownership rules.";
         let outcome = run_outcome("summarize", input);
         assert!(!outcome.is_failed());
@@ -993,6 +1010,7 @@ mod tests {
 
     #[test]
     fn summarize_empty_input() {
+        ensure_dev_bypass();
         let outcome = run_outcome("summarize", "");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("Empty input"));
@@ -1000,6 +1018,7 @@ mod tests {
 
     #[test]
     fn sag_counts_occurrences() {
+        ensure_dev_bypass();
         let input = "rust ||| the rust compiler is fast and rust is safe";
         let outcome = run_outcome("sag", input);
         assert!(!outcome.is_failed());
@@ -1008,6 +1027,7 @@ mod tests {
 
     #[test]
     fn sag_wrong_format() {
+        ensure_dev_bypass();
         let outcome = run_outcome("sag", "no separator");
         // Wrong format input returns a typed failure (usage error)
         assert!(outcome.is_failed());
@@ -1016,6 +1036,7 @@ mod tests {
 
     #[test]
     fn diagnostics_analyzes_text() {
+        ensure_dev_bypass();
         let input = "fn main() {\n    println!(\"hello\");\n}";
         let outcome = run_outcome("diagnostics", input);
         assert!(!outcome.is_failed());
@@ -1025,6 +1046,7 @@ mod tests {
 
     #[test]
     fn diagnostics_empty_input() {
+        ensure_dev_bypass();
         let outcome = run_outcome("diagnostics", "");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("Üres bemenet"));
@@ -1032,6 +1054,7 @@ mod tests {
 
     #[test]
     fn batch8_language_detection_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("polyglot", "fn main() { println!(\"hi\"); }");
         assert!(!outcome.is_failed());
         assert!(outcome.output.to_lowercase().contains("rust"));
@@ -1039,6 +1062,7 @@ mod tests {
 
     #[test]
     fn batch8_circuit_breaker_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("circuit-breaker", "closed");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("CLOSED"));
@@ -1046,6 +1070,7 @@ mod tests {
 
     #[test]
     fn batch9_code_review_works() {
+        ensure_dev_bypass();
         let input = "fn main() {\n    let x = 5;\n    println!(\"{}\", x);\n}";
         let outcome = run_outcome("code-review", input);
         assert!(!outcome.is_failed());
@@ -1054,6 +1079,7 @@ mod tests {
 
     #[test]
     fn batch10_geolocation_distance_works() {
+        ensure_dev_bypass();
         let input = "40.7128 -74.0060 51.5074 -0.1278";
         let outcome = run_outcome("geolocation-distance", input);
         assert!(!outcome.is_failed());
@@ -1062,6 +1088,7 @@ mod tests {
 
     #[test]
     fn batch11_dna_extract_works() {
+        ensure_dev_bypass();
         let input = "fn add(a: i32, b: i32) -> i32 { a + b }";
         let outcome = run_outcome("dna-extract", input);
         assert!(!outcome.is_failed());
@@ -1070,6 +1097,7 @@ mod tests {
 
     #[test]
     fn batch12_dual_generate_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("dual-generate", "test pattern");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("dual") || outcome.output.contains("generate"));
@@ -1077,6 +1105,7 @@ mod tests {
 
     #[test]
     fn polyglot_detects_rust() {
+        ensure_dev_bypass();
         let outcome = run_outcome("polyglot", "fn main() { let x = 5; }");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("rust"));
@@ -1084,6 +1113,7 @@ mod tests {
 
     #[test]
     fn circuit_breaker_closed() {
+        ensure_dev_bypass();
         let outcome = run_outcome("circuit-breaker", "closed");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("CLOSED"));
@@ -1091,6 +1121,7 @@ mod tests {
 
     #[test]
     fn code_review_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("code-review", "fn main() {}");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("code-review"));
@@ -1098,6 +1129,7 @@ mod tests {
 
     #[test]
     fn duplicate_detector_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("duplicate-detector", "let x = 5;\nlet y = 10;\nlet x = 5;");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("duplicate"));
@@ -1105,6 +1137,7 @@ mod tests {
 
     #[test]
     fn code_quality_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("code-quality", "fn main() {\n    let x = 5;\n}");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("score="));
@@ -1112,6 +1145,7 @@ mod tests {
 
     #[test]
     fn data_master_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("data-master", "1 2 3 4 5");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("count=5"));
@@ -1119,6 +1153,7 @@ mod tests {
 
     #[test]
     fn retry_policy_works() {
+        ensure_dev_bypass();
         let outcome = run_outcome("retry-policy", "3 100");
         assert!(!outcome.is_failed());
         assert!(outcome.output.contains("max_retries=3"));
