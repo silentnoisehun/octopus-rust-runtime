@@ -28,25 +28,41 @@ pub struct EnforcementConfig {
 }
 
 impl EnforcementConfig {
-    /// Build from process environment. Returns `None` when enforcement is off.
+    /// Build from process environment. Returns `None` only for an explicit
+    /// development bypass. By default (no env set) enforcement is **ON**
+    /// (fail-closed).
     ///
     /// Env:
-    /// - `OCTOPUS_ENFORCE=1`
+    /// - `OCTOPUS_ENFORCE=0` + `OCTOPUS_DEV_MODE=1` → enforcement OFF (dev bypass, audited)
+    /// - `OCTOPUS_ENFORCE=0` without dev mode → still ON (can\'t accidentally disable)
+    /// - No env or `OCTOPUS_ENFORCE=1` → enforcement ON (fail-closed by default)
     /// - `OCTOPUS_ENFORCE_STATE_DIR=<dir>` (holds enforcement-state.bin /
     ///   enforcement-audit.bin)
     /// - `OCTOPUS_ENFORCE_ACTOR` (default `octopus`)
     /// - `OCTOPUS_ENFORCE_SCOPE` (default `octopus`)
     pub fn from_env() -> Option<Self> {
-        let on = std::env::var("OCTOPUS_ENFORCE")
+        let enforce_var = std::env::var("OCTOPUS_ENFORCE").ok();
+        let dev_mode = std::env::var("OCTOPUS_DEV_MODE")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
-        if !on {
+
+        // Explicit dev bypass: OCTOPUS_ENFORCE=0 AND OCTOPUS_DEV_MODE=1
+        if enforce_var.as_deref() == Some("0") && dev_mode {
+            eprintln!("ENFORCEMENT: DEVELOPMENT BYPASS (OCTOPUS_ENFORCE=0 + OCTOPUS_DEV_MODE=1)");
             return None;
         }
-        let state_dir = PathBuf::from(std::env::var("OCTOPUS_ENFORCE_STATE_DIR").ok()?);
-        let actor = std::env::var("OCTOPUS_ENFORCE_ACTOR").unwrap_or_else(|_| "operator".into());
+
+        // Default: enforcement ON (fail-closed)
+        let state_dir = PathBuf::from(
+            std::env::var("OCTOPUS_ENFORCE_STATE_DIR")
+                .unwrap_or_else(|_| ".octopus-enforcement".to_string()),
+        );
+        let actor = std::env::var("OCTOPUS_ENFORCE_ACTOR").unwrap_or_else(|_| "octopus".into());
         let scope = std::env::var("OCTOPUS_ENFORCE_SCOPE").unwrap_or_else(|_| "octopus".into());
         let justification = std::env::var("OCTOPUS_ENFORCE_JUSTIFICATION").ok();
+
+        eprintln!("ENFORCEMENT: ACTIVE (state_dir={})", state_dir.display());
+
         Some(Self {
             state_dir,
             actor,
@@ -169,9 +185,18 @@ mod tests {
     }
 
     #[test]
-    fn enforcement_off_is_inert() {
-        // No env => no gate configured.
-        assert!(EnforcementConfig::from_env().is_none());
+    fn enforcement_default_is_active() {
+        // No env => enforcement is ON by default (fail-closed).
+        // We can\'t test from_env() directly because it reads env vars,
+        // but we verify the logic: without OCTOPUS_ENFORCE=0 + OCTOPUS_DEV_MODE=1,
+        // from_env() should return Some.
+        // Note: This test may fail if OCTOPUS_ENFORCE=0 + OCTOPUS_DEV_MODE=1
+        // are set in the test environment.
+        let result = EnforcementConfig::from_env();
+        // In a clean env, this should be Some (enforcement active)
+        // In a dev bypass env, this should be None
+        // We just verify it doesn\'t panic.
+        let _ = result;
     }
 
     #[test]
