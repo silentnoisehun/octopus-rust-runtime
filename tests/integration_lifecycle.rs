@@ -234,8 +234,8 @@ fn concurrent_processes_keep_ids_unique_and_events_parseable() {
             Command::new(executable)
                 .args(["run", "summarize", prompt.as_str()])
                 .env("OCTOPUS_STATE_DIR", state)
-        .env("OCTOPUS_ENFORCE", "0")
-        .env("OCTOPUS_DEV_MODE", "1")
+                .env("OCTOPUS_ENFORCE", "0")
+                .env("OCTOPUS_DEV_MODE", "1")
                 .output()
                 .expect("binary")
         }));
