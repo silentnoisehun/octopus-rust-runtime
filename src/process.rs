@@ -392,7 +392,8 @@ mod tests {
 
     #[test]
     fn run_where_produces_stdout() {
-        let spec = ProcessSpec::new("where").arg("cargo");
+        let cmd = if cfg!(windows) { "where" } else { "which" };
+        let spec = ProcessSpec::new(cmd).arg("cargo");
         let result = run_process(&spec).unwrap();
         assert_eq!(result.exit_code, 0);
         let stdout = String::from_utf8_lossy(&result.stdout);

@@ -93,18 +93,30 @@ fn run_endurance_guard_at(configured: &Path) -> Result<(), String> {
             configured.display()
         ));
     }
-    let output = Command::new("powershell.exe")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-        ])
-        .arg(configured)
-        .arg("Guard")
-        .output()
-        .map_err(|error| format!("cannot run endurance guard: {error}"))?;
+    let output = if cfg!(windows) {
+        Command::new("powershell.exe")
+            .args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+            ])
+            .arg(configured)
+            .arg("Guard")
+            .output()
+    } else {
+        if configured.extension().and_then(|e| e.to_str()) == Some("ps1") {
+            Command::new("pwsh")
+                .args(["-NoProfile", "-NonInteractive", "-File"])
+                .arg(configured)
+                .arg("Guard")
+                .output()
+        } else {
+            Command::new("sh").arg(configured).arg("Guard").output()
+        }
+    }
+    .map_err(|error| format!("cannot run endurance guard: {error}"))?;
     match output.status.code() {
         Some(0) => Ok(()),
         Some(3) => Err("active endurance lease blocks the actuator".to_string()),

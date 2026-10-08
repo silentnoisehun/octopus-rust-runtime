@@ -294,8 +294,8 @@ Every change must pass these, in order:
 ```powershell
 cargo fmt --check                        # Formatting
 cargo clippy --locked --all-targets -- -D warnings  # Zero warnings
-cargo test --locked                      # All Octopus tests green (357 currently)
-cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 62 Bio tests
+cargo test --locked                      # All Octopus tests green (369 currently)
+cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 61 Bio tests
 cargo build --release --locked           # Release binary
 ```
 
@@ -317,8 +317,8 @@ octopus-runtime pipeline "summarize || code-analysis" "probe"
 
 | Metric | Value |
 |--------|-------|
-| Octopus tests | 357 (312 unit + 45 integration), 0 failed |
-| Bio-Binaries tests | 62, 0 failed |
+| Octopus tests | 369 (324 unit + 45 integration), 0 failed |
+| Bio-Binaries tests | 61, 0 failed |
 | Runtime Clippy | clean, `--all-targets -- -D warnings` (Rust stable); CI actions are commit-pinned |
 | Test hygiene | duplicate test attributes removed; every reported test is unique |
 | Capabilities | 225 unique: 168 `real`, 55 `unavailable`, 2 `unsupported` |

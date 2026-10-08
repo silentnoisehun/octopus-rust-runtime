@@ -1112,6 +1112,7 @@ dependencies = [
  "dirs",
  "hex",
  "image",
+ "libc",
  "microscope-memory",
  "qrcode",
  "rand 0.8.7",

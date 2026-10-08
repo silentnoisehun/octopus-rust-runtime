@@ -215,12 +215,17 @@ fn runtime_state_dir() -> PathBuf {
 }
 
 fn expected_release_sha256(name: &str) -> Option<&'static str> {
-    let expected_file = format!("{name}{}", env::consts::EXE_SUFFIX);
+    let expected_file_exe = format!("{name}.exe");
+    let expected_file_native = format!("{name}{}", env::consts::EXE_SUFFIX);
     RELEASE_SHA256SUMS.lines().find_map(|line| {
         let mut fields = line.split_whitespace();
         let hash = fields.next()?;
         let file = fields.next()?;
-        (file == expected_file).then_some(hash)
+        if file == expected_file_exe || file == expected_file_native || file == name {
+            Some(hash)
+        } else {
+            None
+        }
     })
 }
 

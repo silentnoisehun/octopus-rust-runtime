@@ -111,10 +111,10 @@ mod tests {
 
     #[test]
     fn sidecar_path_normalizes_a_dot_prefixed_state_name() {
-        let state = PathBuf::from(r"D:\codex\.octopus-rust");
-        assert_eq!(
-            sidecar_path(&state, "state.lock").unwrap(),
-            PathBuf::from(r"D:\codex\.octopus-rust.state.lock")
-        );
+        let state = Path::new("D:").join("codex").join(".octopus-rust");
+        let expected = Path::new("D:")
+            .join("codex")
+            .join(".octopus-rust.state.lock");
+        assert_eq!(sidecar_path(&state, "state.lock").unwrap(), expected);
     }
 }
