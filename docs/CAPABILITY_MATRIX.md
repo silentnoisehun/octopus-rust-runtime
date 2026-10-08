@@ -1,6 +1,6 @@
 # Octopus Capability Matrix — v2.9.0 verified state
 
-Total public capabilities: 225 (the existing 192-entry Octopus surface plus 33 separately bundled Bio-Binaries process targets)
+Total public capabilities: 226 (the existing 193-entry Octopus surface plus 33 separately bundled Bio-Binaries process targets)
 
 Canonical runtime axes:
 
@@ -12,10 +12,10 @@ Canonical runtime axes:
 
 ## Current verified state
 
-- Registry: 225 unique entries
+- Registry: 226 unique entries
 - Status: 168 `real`, 55 `unavailable`, 2 `unsupported`
 - Windows/offline profile: 164 entries, no external integration, no `declared` route
-- Tests: 369 Octopus tests plus 61 Bio-Binaries tests, 0 failed
+- Tests: 378 Octopus tests plus 61 Bio-Binaries tests, 0 failed
 - Native functional smoke: 33/33 targets plus 7/7 artifact checks
 - Current v0.3 diagnostic pilot: 33/33 direct and Octopus module cases with three measured samples per lane; concurrency disabled
 - Historical pre-v0.3 latency: 660/660 direct/Octopus pairs; typical paired boundary cost 24.217 ms for the recorded executables

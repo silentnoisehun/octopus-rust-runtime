@@ -115,32 +115,41 @@ fn resonance_path(sd: &Path) -> PathBuf {
 }
 
 #[test]
-fn list_exactly_225() {
+fn list_exactly_226() {
     let sd = state_dir();
     let (code, out, _) = run(&["list"], &sd);
     assert_eq!(code, 0);
     let lines: Vec<_> = out.lines().collect();
     assert_eq!(
         lines.len(),
-        225,
-        "list must include 192 Octopus + 33 Bio targets"
+        226,
+        "list must include 193 Octopus + 33 Bio targets"
     );
     let unique: std::collections::HashSet<&str> = lines.iter().cloned().collect();
-    assert_eq!(unique.len(), 225, "list must have 225 unique entries");
-    for name in ["viral-infect", "hox-diff", "omega-master", "microscope-mem"] {
-        assert!(unique.contains(name), "missing bundled Bio target: {name}");
+    assert_eq!(unique.len(), 226, "list must have 226 unique entries");
+    for name in [
+        "viral-infect",
+        "hox-diff",
+        "omega-master",
+        "microscope-mem",
+        "wave-echo",
+    ] {
+        assert!(
+            unique.contains(name),
+            "missing bundled Bio/Wave target: {name}"
+        );
     }
 }
 
 #[test]
-fn caps_exactly_225() {
+fn caps_exactly_226() {
     let sd = state_dir();
     let (code, out, _) = run(&["capabilities"], &sd);
     assert_eq!(code, 0);
     let lines: Vec<_> = out.lines().collect();
-    assert_eq!(lines.len(), 225);
+    assert_eq!(lines.len(), 226);
     let unique: std::collections::HashSet<&str> = lines.iter().cloned().collect();
-    assert_eq!(unique.len(), 225);
+    assert_eq!(unique.len(), 226);
 }
 
 #[test]
