@@ -1008,7 +1008,7 @@ fn github_manager_read(prompt: &str) -> ExecutionOutcome {
 mod tests {
     use super::*;
 
-    const EXPECTED_PUBLIC_CAPABILITIES: usize = 225;
+    const EXPECTED_PUBLIC_CAPABILITIES: usize = 226;
 
     #[test]
     fn catalog_marks_real_local_and_composite_capabilities() {
@@ -1082,7 +1082,7 @@ mod tests {
         assert_eq!(
             caps.len(),
             EXPECTED_PUBLIC_CAPABILITIES,
-            "expected the 192 Octopus capabilities plus 33 bundled Bio-Binaries targets"
+            "expected the 193 Octopus capabilities plus 33 bundled Bio-Binaries targets"
         );
         let copied = caps
             .iter()

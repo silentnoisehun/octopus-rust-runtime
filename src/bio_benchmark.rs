@@ -470,19 +470,20 @@ pub fn run_benchmarks(cfg: BenchmarkConfig) -> crate::outcome::ExecutionOutcome 
 }
 
 fn find_octopus_binary() -> PathBuf {
+    let bin_name = format!("octopus-runtime{}", std::env::consts::EXE_SUFFIX);
     let mut path = PathBuf::from(std::env!("CARGO_MANIFEST_DIR"));
     path.push("target");
     path.push("debug");
-    path.push("octopus-runtime.exe");
+    path.push(&bin_name);
     if !path.exists() {
         path.pop();
         path.pop();
         path.push("release");
-        path.push("octopus-runtime.exe");
+        path.push(&bin_name);
     }
     if !path.exists() {
         // Fallback to installed location
-        path = PathBuf::from(r"C:\Users\mater\.agents\skills\octopus\bin\octopus-runtime.exe");
+        path = PathBuf::from(r"C:\Users\mater\.agents\skills\octopus\bin").join(&bin_name);
     }
     path
 }
@@ -516,7 +517,7 @@ struct RunParams<'a> {
 fn run_one(octopus_bin: &Path, bio_bin_dir: &Path, p: RunParams<'_>) -> Option<RunResult> {
     let (cmd, args) = match p.mode {
         "direct" => {
-            let bin = bio_bin_dir.join(format!("{}.exe", p.spec.name));
+            let bin = bio_bin_dir.join(format!("{}{}", p.spec.name, std::env::consts::EXE_SUFFIX));
             if !bin.exists() {
                 eprintln!("  [skip] {} not found at {}", p.spec.name, bin.display());
                 return None;

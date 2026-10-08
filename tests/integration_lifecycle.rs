@@ -26,14 +26,15 @@ fn state_dir() -> PathBuf {
 
 fn binary() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let bin_name = format!("octopus-runtime{}", env::consts::EXE_SUFFIX);
     path.push("target");
     path.push("debug");
-    path.push("octopus-runtime.exe");
+    path.push(&bin_name);
     if !path.exists() {
         path.pop();
         path.pop();
         path.push("release");
-        path.push("octopus-runtime.exe");
+        path.push(&bin_name);
     }
     path
 }

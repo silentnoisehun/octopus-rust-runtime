@@ -23,6 +23,7 @@ pub mod resonance;
 mod snapshot;
 mod state_lock;
 mod state_path;
+pub mod wave_echo;
 
 pub use bio_benchmark::{run_benchmarks, BenchmarkConfig};
 pub use capability::{
@@ -172,6 +173,12 @@ pub fn bio_external_run(name: &str, args: &str, allow_mutation: bool) -> Executi
         ),
         || bio_system::external::execute(name, args, allow_mutation),
     )
+}
+
+pub fn wave_echo_command(args: &[String]) -> ExecutionOutcome {
+    run_control_action("wave-echo", format!("wave-echo {}", args.join(" ")), || {
+        wave_echo::cmd::handle_wave_echo_command(args)
+    })
 }
 
 fn sha256_text(value: &str) -> String {
@@ -478,6 +485,7 @@ const RUNTIME_ONLY_CAPABILITIES: &[&str] = &[
     "wacli",
     "weather",
     "pipeline-architect",
+    "wave-echo",
 ];
 
 pub fn list() -> Vec<&'static str> {

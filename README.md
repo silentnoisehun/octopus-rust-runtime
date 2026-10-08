@@ -42,7 +42,7 @@ You give it a prompt. It splits the work. Arms run. Results converge. Everything
 - **Auditable** — every root, arm, and event is persisted. You can `status <id>` any past execution
 - **Crash-safe state** — snapshots are replaced atomically, event writes are process-locked, IDs include the process, and malformed status records fail closed
 - **Minimal-token Marshal** — local task classification, safe-ready topology filtering, OS-CSPRNG psi selection, compact receipts, and explicit write permission before dispatch
-- **225 registry entries with typed status** — 168 are currently marked `real`, 55 are `unavailable`, and 2 are `unsupported` on Windows. The registry includes 33 tested native Bio-Binaries process targets while keeping the Bio crate and executable boundary separate from the Octopus process.
+- **226 registry entries with typed status** — 168 are currently marked `real`, 55 are `unavailable`, and 2 are `unsupported` on Windows. The registry includes 33 tested native Bio-Binaries process targets and the `wave-echo` subsystem while keeping the Bio crate and executable boundary separate from the Octopus process.
 
 ## Quick Start
 
@@ -168,10 +168,20 @@ octopus-runtime marshal --execute --allow-write "<pipeline boundary contract>"
 octopus-runtime status root-12345-1-1783870125403
 ```
 
+### Activate Wave Echo Reflexes
+
+```powershell
+octopus-runtime wave-echo vault-search "rust cli app"
+octopus-runtime wave-echo activate 1 --task "build a cli tool" --exec
+octopus-runtime wave-echo activate-multi "1,2,3" --task "project demo" --exec
+```
+
+`wave-echo` connects to the Rongyász Spine 2048B mmap bus, performs GP-echo wave interference matching ($I > 0.72$ threshold), and applies LTP/LTD learning feedback on template execution.
+
 ### List Everything Available
 
 ```powershell
-octopus-runtime list              # all 225 capabilities
+octopus-runtime list              # all 226 capabilities
 octopus-runtime capabilities      # full registry with status, effect class and evidence grade
 octopus-runtime capabilities --profile windows-offline  # 164 safe-ready entries
 ```
@@ -180,7 +190,8 @@ octopus-runtime capabilities --profile windows-offline  # 164 safe-ready entries
 
 | Command | What it does |
 |---------|-------------|
-| `list` | List all 225 capability names. |
+| `list` | List all 226 capability names. |
+| `wave-echo <subcommand>` | Wave Echo template vault, GP-echo interference search, LTP/LTD feedback and Spine mmap integration. |
 | `capabilities [--profile all\|windows-offline]` | List capability status, execution class and verification grade; optionally keep only the 164 Windows/offline safe-ready routes. |
 | `run <blade> <prompt>` | Run one blade as a standalone arm |
 | `arm <blade> <prompt>` | Create and execute a single arm |
@@ -294,8 +305,8 @@ Every change must pass these, in order:
 ```powershell
 cargo fmt --check                        # Formatting
 cargo clippy --locked --all-targets -- -D warnings  # Zero warnings
-cargo test --locked                      # All Octopus tests green (357 currently)
-cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 62 Bio tests
+cargo test --locked                      # All Octopus tests green (378 currently)
+cargo test --manifest-path bio-binaries/Cargo.toml --locked -j1  # 61 Bio tests
 cargo build --release --locked           # Release binary
 ```
 
@@ -304,8 +315,8 @@ Generated release binaries and Cargo target trees, including the bundled Bio cra
 Then verify invariants:
 
 ```powershell
-octopus-runtime list          # 225, 225 unique
-octopus-runtime capabilities  # 225, 225 unique
+octopus-runtime list          # 226, 226 unique
+octopus-runtime capabilities  # 226, 226 unique
 octopus-runtime capabilities --profile windows-offline  # 164, no external/declared entries
 .\scripts\verify-bio-system.ps1  # 33/33 native functional paths plus artifact receipts
 .\scripts\benchmark-bio-system.ps1 -Warmup 3 -Samples 20  # paired latency benchmark
@@ -317,11 +328,11 @@ octopus-runtime pipeline "summarize || code-analysis" "probe"
 
 | Metric | Value |
 |--------|-------|
-| Octopus tests | 357 (312 unit + 45 integration), 0 failed |
-| Bio-Binaries tests | 62, 0 failed |
+| Octopus tests | 378 (332 unit + 46 integration), 0 failed |
+| Bio-Binaries tests | 61, 0 failed |
 | Runtime Clippy | clean, `--all-targets -- -D warnings` (Rust stable); CI actions are commit-pinned |
 | Test hygiene | duplicate test attributes removed; every reported test is unique |
-| Capabilities | 225 unique: 168 `real`, 55 `unavailable`, 2 `unsupported` |
+| Capabilities | 226 unique: 168 `real`, 55 `unavailable`, 2 `unsupported` |
 | Windows/offline profile | 164 entries; 0 external integrations; 0 `declared` routes |
 | Native Bio subsystem | 33/33 functional smoke paths; 7/7 artifact checks |
 | Bio release integrity | 33 embedded SHA-256 pins; tampered executable refused before launch |

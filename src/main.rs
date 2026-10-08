@@ -126,6 +126,11 @@ enum Command {
         #[command(subcommand)]
         command: StateRestoreCommand,
     },
+    /// Wave Echo - hullám-sablon kar-könyvtár és kódgenerátor
+    WaveEcho {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -538,6 +543,9 @@ fn main() {
                 print_outcome(octopus_runtime::state_restore_recover());
             }
         },
+        Command::WaveEcho { args } => {
+            print_outcome(octopus_runtime::wave_echo_command(&args));
+        }
     }
 }
 

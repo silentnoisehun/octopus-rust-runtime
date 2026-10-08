@@ -1106,12 +1106,15 @@ dependencies = [
 name = "octopus-runtime"
 version = "2.9.0"
 dependencies = [
+ "blake3",
  "chrono",
  "clap",
  "csv",
  "dirs",
  "hex",
  "image",
+ "libc",
+ "memmap2",
  "microscope-memory",
  "qrcode",
  "rand 0.8.7",

@@ -26,14 +26,15 @@ fn state_dir() -> PathBuf {
 
 fn binary() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let bin_name = format!("octopus-runtime{}", env::consts::EXE_SUFFIX);
     path.push("target");
     path.push("debug");
-    path.push("octopus-runtime.exe");
+    path.push(&bin_name);
     if !path.exists() {
         path.pop();
         path.pop();
         path.push("release");
-        path.push("octopus-runtime.exe");
+        path.push(&bin_name);
     }
     path
 }
@@ -114,32 +115,41 @@ fn resonance_path(sd: &Path) -> PathBuf {
 }
 
 #[test]
-fn list_exactly_225() {
+fn list_exactly_226() {
     let sd = state_dir();
     let (code, out, _) = run(&["list"], &sd);
     assert_eq!(code, 0);
     let lines: Vec<_> = out.lines().collect();
     assert_eq!(
         lines.len(),
-        225,
-        "list must include 192 Octopus + 33 Bio targets"
+        226,
+        "list must include 193 Octopus + 33 Bio targets"
     );
     let unique: std::collections::HashSet<&str> = lines.iter().cloned().collect();
-    assert_eq!(unique.len(), 225, "list must have 225 unique entries");
-    for name in ["viral-infect", "hox-diff", "omega-master", "microscope-mem"] {
-        assert!(unique.contains(name), "missing bundled Bio target: {name}");
+    assert_eq!(unique.len(), 226, "list must have 226 unique entries");
+    for name in [
+        "viral-infect",
+        "hox-diff",
+        "omega-master",
+        "microscope-mem",
+        "wave-echo",
+    ] {
+        assert!(
+            unique.contains(name),
+            "missing bundled Bio/Wave target: {name}"
+        );
     }
 }
 
 #[test]
-fn caps_exactly_225() {
+fn caps_exactly_226() {
     let sd = state_dir();
     let (code, out, _) = run(&["capabilities"], &sd);
     assert_eq!(code, 0);
     let lines: Vec<_> = out.lines().collect();
-    assert_eq!(lines.len(), 225);
+    assert_eq!(lines.len(), 226);
     let unique: std::collections::HashSet<&str> = lines.iter().cloned().collect();
-    assert_eq!(unique.len(), 225);
+    assert_eq!(unique.len(), 226);
 }
 
 #[test]
@@ -342,6 +352,14 @@ fn bio_macrophage_plan_is_non_mutating_and_apply_is_permission_gated() {
         pid.clone(),
     ];
     let (code, out, err) = run(&plan_args, &sd);
+    if !cfg!(target_os = "windows") {
+        assert_ne!(code, 0);
+        assert!(
+            err.contains("Windows-only") || out.contains("Windows-only"),
+            "err={err}, out={out}"
+        );
+        return;
+    }
     assert_eq!(code, 0, "{err}");
     assert!(out.contains("MACROPHAGE PLAN"), "{out}");
     assert!(out.contains("mode: dry-run"), "{out}");
@@ -444,12 +462,31 @@ fn bio_crispr_cli_requires_permission_then_commits_the_confirmed_bytes() {
 
     let mut apply_args = denied_args;
     apply_args.push("--allow-write".to_string());
-    let guard = sd.join("test-endurance-guard.ps1");
-    std::fs::write(
-        &guard,
-        "param([string]$Command)\nif ($Command -eq 'Guard') { exit 0 }\nexit 2\n",
-    )
-    .unwrap();
+    let guard = sd.join(if cfg!(windows) {
+        "test-endurance-guard.ps1"
+    } else {
+        "test-endurance-guard.sh"
+    });
+    if cfg!(windows) {
+        std::fs::write(
+            &guard,
+            "param([string]$Command)\nif ($Command -eq 'Guard') { exit 0 }\nexit 2\n",
+        )
+        .unwrap();
+    } else {
+        std::fs::write(
+            &guard,
+            "#!/bin/sh\nif [ \"$1\" = \"Guard\" ]; then exit 0; fi\nexit 2\n",
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&guard).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&guard, perms).unwrap();
+        }
+    }
     let (code, out, err) = run_with_guard(&apply_args, &sd, &guard);
     assert_eq!(code, 0, "{err}");
     assert!(out.contains("CRISPR APPLY"), "{out}");
@@ -466,7 +503,10 @@ fn bio_subsystem_status_reports_the_separate_bundled_crate() {
     assert_eq!(code, 0, "{err}");
     assert!(out.contains("BIO SUBSYSTEM"), "{out}");
     assert!(out.contains("layout: separate-bundled-crate"), "{out}");
-    assert!(out.contains("bio-binaries\\Cargo.toml"), "{out}");
+    assert!(
+        out.contains("bio-binaries\\Cargo.toml") || out.contains("bio-binaries/Cargo.toml"),
+        "{out}"
+    );
     assert!(out.contains("availability:"), "{out}");
     assert!(out.contains("33/33 SHA-256 release pins embedded"), "{out}");
 }
@@ -487,7 +527,11 @@ fn bio_external_rejects_an_unpinned_executable_before_launch() {
     let sd = state_dir();
     let directory = sd.join("bio-bin");
     std::fs::create_dir_all(&directory).unwrap();
-    std::fs::copy(binary(), directory.join("hox-diff.exe")).unwrap();
+    std::fs::copy(
+        binary(),
+        directory.join(format!("hox-diff{}", env::consts::EXE_SUFFIX)),
+    )
+    .unwrap();
     let output = Command::new(binary())
         .args(["bio", "external", "hox-diff", "--", "--version"])
         .env("OCTOPUS_STATE_DIR", &sd)
